@@ -33,9 +33,11 @@
  *   1.12.0 — 31/10/2026 — senhas guardadas protegidas (irreversíveis); recuperação por
  *                        código no e-mail; senha provisória escrita na planilha pede
  *                        troca no login; texto digitado nunca vira fórmula na planilha.
+ *   1.13.0 — 31/10/2026 — aceite e contagem de uso exigem comprovante de sessão, emitido
+ *                        no login: só o celular não basta para gravar em nome de alguém.
  */
 
-const VERSAO = "1.12.0";
+const VERSAO = "1.13.0";
 const PLANILHA_ID = "1SFTDBS8Jiz3yPBbbdkgb8MkWZCbKU9Ed8wjDxNR7pAA";
 const ABA = ""; // vazio = primeira aba
 const MAX_TENTATIVAS = 5;
@@ -48,6 +50,9 @@ const PROP_CHAVE_SENHAS = "CHAVE_SENHAS"; // fica nas propriedades do script, fo
 const VALIDADE_CODIGO_SEGUNDOS = 15 * 60;
 const MAX_CODIGOS_HORA = 3; // por celular
 const MAX_ERROS_CODIGO = 5;
+const DIAS_COMPROVANTE = 31; // sessão no app: 30 dias
+// Sessões abertas antes do comprovante vencem em 30 dias: até lá, a contagem delas é aceita.
+const FIM_SESSOES_ANTIGAS = new Date("2026-12-05T00:00:00-03:00").getTime();
 const AVISAR_CADASTRO_POR_EMAIL = true;
 
 // Colunas da planilha: nome do cabeçalho criado e padrão para reconhecer um existente.
@@ -117,14 +122,33 @@ function login(celular, senha) {
 
   const conferido = conferirSenha(chave, senha);
   if (conferido.erro) return { ok: false, erro: conferido.erro };
-  const resposta = sessao(conferido.usuario);
+  const resposta = sessao(conferido.usuario, chave);
   if (!senhaProtegida(conferido.usuario.senha)) resposta.trocarSenha = true;
   return resposta;
 }
 
 // termos: versão já aceita (vazio = o app pede o aceite).
-function sessao(usuario) {
-  return { ok: true, nome: String(usuario.nome || "").trim(), termos: String(usuario.termos || "").trim() };
+function sessao(usuario, chave) {
+  return {
+    ok: true,
+    nome: String(usuario.nome || "").trim(),
+    termos: String(usuario.termos || "").trim(),
+    comprovante: gerarComprovante(chave),
+  };
+}
+
+// Prova que o celular entrou com a senha. Só o script assina, com a chave que não está no código.
+function gerarComprovante(chave) {
+  const validade = String(Date.now() + DIAS_COMPROVANTE * 86400000);
+  return validade + "." + gerarHash(validade, "sessao" + chave);
+}
+
+function comprovanteValido(chave, comprovante) {
+  const texto = String(comprovante || "");
+  const ponto = texto.indexOf(".");
+  const validade = texto.slice(0, ponto);
+  if (!/^\d+$/.test(validade) || Number(validade) <= Date.now()) return false;
+  return texto.slice(ponto + 1) === gerarHash(validade, "sessao" + chave);
 }
 
 // Devolve { usuario } ou { erro }, contando as tentativas erradas do celular.
@@ -211,7 +235,7 @@ function trocarSenha(d) {
   if (erro) return { ok: false, erro: erro };
   if (nova === senha.trim()) return { ok: false, erro: "Escolha uma senha diferente da provisória." };
   if (!gravarSenha(conferido.usuario, nova)) return { ok: false, erro: "Servidor ocupado. Tente de novo." };
-  return sessao(conferido.usuario);
+  return sessao(conferido.usuario, chave);
 }
 
 // ---------- Recuperação de senha pelo e-mail ----------
@@ -281,7 +305,7 @@ function redefinirSenha(d) {
   cache.remove(chaveCodigo);
   cache.remove(chaveErros);
   cache.remove("tentativas_" + chave);
-  return sessao(usuario);
+  return sessao(usuario, chave);
 }
 
 function buscarUsuario(chave) {
@@ -385,7 +409,7 @@ function cadastrar(d) {
   cache.put("cadastros_hora", String(cadastrosHora + 1), 3600);
 
   if (AVISAR_CADASTRO_POR_EMAIL) avisarCadastro(novo);
-  return { ok: true, nome: novo.nome };
+  return { ok: true, nome: novo.nome, comprovante: gerarComprovante(chave) };
 }
 
 function avisarCadastro(novo) {
@@ -427,6 +451,8 @@ function registrarAceite(d) {
   const chave = chaveCelular(d.celular);
   const versao = limpar(d.versao, 10);
   if (!chave || !versao) return { ok: false, erro: "Dados do aceite inválidos." };
+  // Sem comprovante, nada é gravado: como a planilha segue sem o aceite, o próximo login pede de novo.
+  if (!comprovanteValido(chave, d.comprovante)) return { ok: true };
 
   const cache = CacheService.getScriptCache();
   const chaveCache = "aceite_" + chave;
@@ -463,6 +489,9 @@ function registrarAceite(d) {
 function registrarUso(d) {
   const chave = chaveCelular(d.celular);
   if (!chave) return { ok: false, erro: "Celular inválido." };
+  if (!comprovanteValido(chave, d.comprovante) && (d.comprovante || Date.now() >= FIM_SESSOES_ANTIGAS)) {
+    return { ok: true, gravados: 0 };
+  }
 
   const cache = CacheService.getScriptCache();
   const chaveCache = "uso_" + chave;

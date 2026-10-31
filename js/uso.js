@@ -56,7 +56,13 @@ export async function enviarUso() {
       const resp = await fetch(LOGIN_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ acao: "uso", celular: sessao.celular, versaoApp: await versaoApp(), eventos: lote }),
+        body: JSON.stringify({
+          acao: "uso",
+          celular: sessao.celular,
+          comprovante: sessao.comprovante,
+          versaoApp: await versaoApp(),
+          eventos: lote,
+        }),
       });
       const r = await resp.json();
       // Script antigo ou recusa: mantém a fila para tentar depois.

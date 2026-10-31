@@ -58,6 +58,8 @@ Para conferir qual versão está no ar, abra o endereço `/exec` no navegador: a
 - "Esqueci a senha" envia um código de 6 dígitos ao e-mail do cadastro. Vale por 15 minutos.
 - Quem não tem o e-mail fala pelo WhatsApp de suporte. Para ajudar: escreva uma senha
   provisória por cima, na coluna Senha dessa pessoa, e envie a ela. No login, o app pede uma senha nova.
+- O login devolve um comprovante de sessão, assinado com a chave. O aceite e a contagem de
+  uso só são gravados com ele. Sessões antigas têm a contagem aceita até 05/12/2026.
 - A chave `CHAVE_SENHAS` fica em Configurações do projeto → Propriedades do script. Não a
   apague nem a altere: sem ela, todos precisariam recuperar a senha.
 - Quem for desativado ou trocar de senha continua com acesso até a sessão de 30 dias vencer.

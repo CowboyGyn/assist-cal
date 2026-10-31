@@ -44,8 +44,8 @@ function gravarSessao(sessao) {
   return sessao;
 }
 
-function salvarSessao(nome, celular, termos) {
-  return gravarSessao({ nome, celular, termos, validoAte: Date.now() + DIAS_SESSAO * 86400000 });
+function salvarSessao(nome, celular, termos, comprovante) {
+  return gravarSessao({ nome, celular, termos, comprovante, validoAte: Date.now() + DIAS_SESSAO * 86400000 });
 }
 
 // O aceite vale na hora, mesmo offline; o registro na planilha é enviado quando houver internet.
@@ -60,7 +60,13 @@ export async function enviarAceitePendente() {
   const s = sessaoAtual();
   if (!s || !s.termosPendente || !navigator.onLine) return;
   try {
-    const r = await chamarScript({ acao: "aceite", celular: s.celular, versao: s.termos, quando: s.termosEm });
+    const r = await chamarScript({
+      acao: "aceite",
+      celular: s.celular,
+      comprovante: s.comprovante,
+      versao: s.termos,
+      quando: s.termosEm,
+    });
     const atual = sessaoAtual();
     if (r.ok && atual && atual.celular === s.celular) {
       delete atual.termosPendente;
@@ -265,10 +271,10 @@ export function iniciarLogin(aoEntrar) {
     });
   }
 
-  const concluir = (nome, celular, termos) => {
+  const concluir = (nome, celular, termos, comprovante) => {
     limparFormularios();
     mostrarBloco("entrar");
-    aoEntrar(salvarSessao(nome, celular, termos));
+    aoEntrar(salvarSessao(nome, celular, termos, comprovante));
   };
 
   formLogin.addEventListener("submit", (e) => {
@@ -281,7 +287,7 @@ export function iniciarLogin(aoEntrar) {
     if (!senha) return mostrarErro(erro, "Informe a senha.");
     enviar(formLogin, { acao: "login", celular, senha }, "Entrando…", (r) => {
       if (r.trocarSenha) abrirNovaSenha({ celular, senha });
-      else concluir(r.nome || "", celular, r.termos || "");
+      else concluir(r.nome || "", celular, r.termos || "", r.comprovante);
     });
   });
 
@@ -306,7 +312,7 @@ export function iniciarLogin(aoEntrar) {
     if (nova.length < MIN_SENHA) return mostrarErro(erro, `A senha deve ter pelo menos ${MIN_SENHA} caracteres.`);
     if (nova !== f.confirmacao.value.trim()) return mostrarErro(erro, "As senhas não conferem.");
     const dados = senha ? { acao: "trocarSenha", celular, senha, nova } : { acao: "redefinir", celular, codigo, nova };
-    enviar(formNovaSenha, dados, "Salvando…", (r) => concluir(r.nome || "", celular, r.termos || ""));
+    enviar(formNovaSenha, dados, "Salvando…", (r) => concluir(r.nome || "", celular, r.termos || "", r.comprovante));
   });
 
   formCadastro.addEventListener("submit", (e) => {
@@ -338,7 +344,7 @@ export function iniciarLogin(aoEntrar) {
     if (dados.senha !== f.confirmacao.value) return falha("As senhas não conferem.", "confirmacao");
     if (!f.aceite.checked) return falha("Para se cadastrar, aceite os Termos de uso e a Política de privacidade.", "aceite");
     enviar(formCadastro, dados, "Cadastrando…", (r) => {
-      concluir(r.nome || dados.nome, dados.celular, TERMOS_VERSAO);
+      concluir(r.nome || dados.nome, dados.celular, TERMOS_VERSAO, r.comprovante);
       // Confirma o aceite também pela ação própria: garante o registro mesmo com script antigo.
       aceitarTermos();
     });
