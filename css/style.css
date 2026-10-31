@@ -395,6 +395,8 @@ input[name="vacas"] { font-size: 1.25rem; font-weight: 600; }
   cursor: pointer;
 }
 .grade.grade-3 { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.grade.grade-pontos { grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.grade-pontos .campo > span { font-size: 0.78rem; }
 .grade-3 .campo > span { font-size: 0.78rem; }
 .item .pesos summary { font-size: 0.9rem; }
 .resultado h4 { margin: 16px 0 4px; font-size: 0.98rem; }

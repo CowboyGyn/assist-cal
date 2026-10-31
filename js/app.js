@@ -17,6 +17,7 @@ import "./ui/previsao.js";
 import "./ui/corte.js";
 import "./ui/volumoso.js";
 import "./ui/agio.js";
+import "./ui/capacidade.js";
 import "./ui/convite.js";
 
 const ROTAS = {
@@ -27,6 +28,7 @@ const ROTAS = {
   "rebanho-corte": { tela: "tela-rebanho-corte", titulo: "Rebanho ideal — corte" },
   "volumoso-seca": { tela: "tela-volumoso-seca", titulo: "Volumoso para a seca" },
   agio: { tela: "tela-agio", titulo: "Ágio de animais" },
+  "capacidade-suporte": { tela: "tela-capacidade-suporte", titulo: "Capacidade de suporte" },
   termos: { tela: "tela-termos", titulo: "Termos e privacidade" },
 };
 

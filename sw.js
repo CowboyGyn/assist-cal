@@ -1,6 +1,6 @@
 // Cache dos arquivos do app para uso offline no campo.
 // Ao alterar qualquer arquivo listado, incremente a versão.
-const VERSAO = "ateg-cal-v30";
+const VERSAO = "ateg-cal-v31";
 const ARQUIVOS = [
   "./",
   "index.html",
@@ -15,12 +15,14 @@ const ARQUIVOS = [
   "js/ui/corte.js",
   "js/ui/volumoso.js",
   "js/ui/agio.js",
+  "js/ui/capacidade.js",
   "js/ui/convite.js",
   "js/calc/rebanho.js",
   "js/calc/previsao.js",
   "js/calc/corte.js",
   "js/calc/volumoso.js",
   "js/calc/agio.js",
+  "js/calc/capacidade.js",
   "js/dados/municipios.json",
   "manifest.webmanifest",
   "icons/favicon-64.png",

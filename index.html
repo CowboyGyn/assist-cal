@@ -383,6 +383,103 @@
       </template>
     </section>
 
+    <!-- Capacidade de suporte -->
+    <section id="tela-capacidade-suporte" class="tela" hidden>
+      <form id="formCapacidade" novalidate>
+        <div class="cartao">
+          <label class="campo">
+            <span>Propriedade</span>
+            <input name="fazenda" type="text" autocomplete="off" placeholder="Nome da fazenda">
+          </label>
+          <div class="grade">
+            <label class="campo"><span>Piquete</span>
+              <input name="piquete" type="text" autocomplete="off" placeholder="Nome ou número"></label>
+            <label class="campo"><span>Área do piquete (ha)</span>
+              <input name="areaHa" type="number" inputmode="decimal" min="0" step="0.01" required></label>
+          </div>
+        </div>
+
+        <div class="cartao">
+          <div class="cartao-titulo">
+            <strong>Forragem colhida em 1 m²</strong>
+            <span>Peso verde de cada ponto, em kg. Colete de 8 a 10 pontos que representem o piquete.</span>
+          </div>
+          <div id="listaPontos" class="grade grade-pontos"></div>
+          <button type="button" id="btnAddPonto" class="link">+ Adicionar ponto</button>
+          <fieldset class="segmentado">
+            <legend>Como a forragem foi cortada</legend>
+            <label><input type="radio" name="corte" value="solo" checked><span>Rente ao solo</span></label>
+            <label><input type="radio" name="corte" value="saida"><span>Na altura de saída</span></label>
+          </fieldset>
+          <div class="grade">
+            <label class="campo"><span>Matéria seca (%)</span>
+              <input name="msPct" type="number" inputmode="decimal" min="0" max="100" step="0.1"></label>
+            <label class="campo"><span>Aproveitamento (%)</span>
+              <input name="aproveitamentoPct" type="number" inputmode="decimal" min="0" max="100" step="1"></label>
+          </div>
+          <details id="blocoMicroondas" class="pesos">
+            <summary>Calcular a matéria seca no micro-ondas</summary>
+            <p class="nota">Pese a amostra picada, seque no micro-ondas e pese de novo. Os dois pesos substituem a matéria seca digitada acima.</p>
+            <div class="grade">
+              <label class="campo"><span>Peso úmido (g)</span>
+                <input name="pesoUmidoG" type="number" inputmode="decimal" min="0" step="1"></label>
+              <label class="campo"><span>Peso seco (g)</span>
+                <input name="pesoSecoG" type="number" inputmode="decimal" min="0" step="1"></label>
+            </div>
+          </details>
+        </div>
+
+        <div class="cartao">
+          <div class="cartao-titulo">
+            <strong>Animais no piquete</strong>
+            <span>Informe o lote para ver os dias de ocupação. Campos vazios usam a referência.</span>
+          </div>
+          <div id="listaLotesCapacidade" class="lista-itens"></div>
+          <button type="button" id="btnAddLoteCapacidade" class="link">+ Adicionar categoria</button>
+        </div>
+
+        <div class="cartao">
+          <div class="grade">
+            <label class="campo"><span>Descanso do piquete (dias)</span>
+              <input name="descansoDias" type="number" inputmode="numeric" min="0" step="1"></label>
+            <label class="campo"><span>Ocupação planejada (dias)</span>
+              <input name="ocupacaoDias" type="number" inputmode="decimal" min="0" step="0.5"></label>
+          </div>
+          <p class="nota">Com um lote informado, os dias de ocupação vêm do cálculo, e não do valor planejado.</p>
+        </div>
+
+        <p id="erroCapacidade" class="erro" role="alert" hidden></p>
+
+        <div class="acoes">
+          <button type="submit" class="primario">Calcular</button>
+          <button type="button" id="btnLimparCapacidade" class="secundario">Limpar</button>
+        </div>
+      </form>
+
+      <div id="resultadoCapacidade" class="resultado" hidden></div>
+
+      <template id="modeloLoteCapacidade">
+        <div class="item">
+          <div class="item-topo">
+            <select data-campo="tipo" aria-label="Categoria"></select>
+            <button type="button" class="remover" aria-label="Remover categoria">&#10005;</button>
+          </div>
+          <div class="grade">
+            <label class="campo"><span>Animais</span>
+              <input data-campo="animais" type="number" inputmode="numeric" min="1" step="1"></label>
+            <label class="campo"><span>Peso (kg)</span>
+              <input data-campo="pesoKg" type="number" inputmode="numeric" step="1"></label>
+            <label class="campo" hidden><span>Leite (kg/vaca/dia)</span>
+              <input data-campo="leiteKg" type="number" inputmode="decimal" min="0" step="0.5"></label>
+            <label class="campo"><span>Consumo (% do peso)</span>
+              <input data-campo="consumoPct" type="number" inputmode="decimal" step="0.1"></label>
+            <label class="campo"><span>Dieta vinda do pasto (%)</span>
+              <input data-campo="pastoPct" type="number" inputmode="numeric" min="0" max="100" step="1"></label>
+          </div>
+        </div>
+      </template>
+    </section>
+
     <!-- Termos de uso e Política de privacidade (leitura e aceite) -->
     <section id="tela-termos" class="tela" hidden>
       <div id="avisoAceite" class="aviso atencao" hidden>
@@ -546,6 +643,17 @@
             <span class="modulo-tag">Leite e corte</span>
             <strong>Volumoso para a seca</strong>
             <span class="modulo-desc">Silagem, cana, feno: quanto produzir, área, silo e custo.</span>
+          </span>
+          <span class="modulo-seta" aria-hidden="true">&#8250;</span>
+        </a>
+        <a class="modulo forragem" href="#/capacidade-suporte">
+          <span class="modulo-icone" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M3 20h18"/><path d="M6 20c0-4 1-7 2-9M12 20V8M18 20c0-4-1-7-2-9"/><path d="M12 8c-1.8 0-3-1.300-3-3.500 1.800 0 3 1.300 3 3.500zM12 8c1.800 0 3-1.300 3-3.500-1.800 0-3 1.300-3 3.500z"/></svg>
+          </span>
+          <span class="modulo-corpo">
+            <span class="modulo-tag">Leite e corte</span>
+            <strong>Capacidade de suporte</strong>
+            <span class="modulo-desc">Da coleta em 1 m² à lotação e aos dias de ocupação do piquete.</span>
           </span>
           <span class="modulo-seta" aria-hidden="true">&#8250;</span>
         </a>
