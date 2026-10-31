@@ -5,9 +5,15 @@ import { $ } from "./comum.js";
 
 const CHAVE_SESSAO = "ateg-cal:sessao";
 const TEMPO_LIMITE_MS = 20000;
+const MIN_SENHA = 6;
 
 const formLogin = $("formLogin");
 const formCadastro = $("formCadastro");
+const formEsqueci = $("formEsqueci");
+const formNovaSenha = $("formNovaSenha");
+
+// Tela de nova senha aberta: { celular } veio do e-mail; com senha, é a provisória da planilha.
+let pedidoSenha = null;
 
 export const loginAtivo = () => LOGIN_URL !== "";
 
@@ -178,18 +184,40 @@ function mostrarErro(erro, msg) {
 function mostrarBloco(qual) {
   $("blocoEntrar").hidden = qual !== "entrar";
   $("blocoCadastro").hidden = qual !== "cadastro";
+  $("blocoEsqueci").hidden = qual !== "esqueci";
+  $("blocoNovaSenha").hidden = qual !== "novaSenha";
   for (const erro of document.querySelectorAll("#tela-login .erro")) erro.hidden = true;
   window.scrollTo(0, 0);
 }
 
 function limparFormularios() {
-  for (const form of [formLogin, formCadastro]) {
+  pedidoSenha = null;
+  for (const form of [formLogin, formCadastro, formEsqueci, formNovaSenha]) {
     form.reset();
     for (const campo of form.querySelectorAll(".senha input")) campo.type = "password";
     for (const botao of form.querySelectorAll(".ver-senha")) botao.setAttribute("aria-pressed", "false");
   }
   // O reset volta a UF para GO: a lista de municípios precisa acompanhar.
   if (formCadastro.elements.municipio.options.length > 1) preencherMunicipios();
+}
+
+function abrirNovaSenha(pedido) {
+  pedidoSenha = pedido;
+  const provisoria = !!pedido.senha;
+  $("textoNovaSenha").textContent = provisoria
+    ? "Esta senha é provisória. Crie uma senha sua para continuar."
+    : "Se o celular estiver cadastrado, o código chega ao e-mail em alguns minutos. Veja também o spam.";
+  $("campoCodigo").hidden = provisoria;
+  $("blocoNovaSenha").querySelector(".whats-senha").hidden = provisoria;
+  formNovaSenha.reset();
+  mostrarBloco("novaSenha");
+  (provisoria ? formNovaSenha.elements.nova : formNovaSenha.elements.codigo).focus();
+}
+
+function pedirSenhaWhatsApp() {
+  const celular = (pedidoSenha ? pedidoSenha.celular : formEsqueci.elements.celular.value).trim();
+  const texto = `Olá! Esqueci minha senha do ATeG Cal.${celular ? ` Meu celular cadastrado é ${celular}.` : ""}`;
+  window.open(`https://wa.me/${WHATSAPP_SUPORTE}?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
 }
 
 // aoEntrar(sessao) é chamado depois de um login ou cadastro bem-sucedido.
@@ -224,10 +252,18 @@ export function iniciarLogin(aoEntrar) {
   formCadastro.elements.uf.addEventListener("change", preencherMunicipios);
 
   $("btnEsqueci").addEventListener("click", () => {
-    const celular = formLogin.elements.celular.value.trim();
-    const texto = `Olá! Esqueci minha senha do ATeG Cal.${celular ? ` Meu celular cadastrado é ${celular}.` : ""}`;
-    window.open(`https://wa.me/${WHATSAPP_SUPORTE}?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
+    formEsqueci.elements.celular.value = formLogin.elements.celular.value;
+    mostrarBloco("esqueci");
+    formEsqueci.elements.celular.focus();
   });
+  for (const botao of document.querySelectorAll(".whats-senha")) botao.addEventListener("click", pedirSenhaWhatsApp);
+  for (const botao of document.querySelectorAll(".voltar-entrar")) {
+    botao.addEventListener("click", () => {
+      pedidoSenha = null;
+      formNovaSenha.reset();
+      mostrarBloco("entrar");
+    });
+  }
 
   const concluir = (nome, celular, termos) => {
     limparFormularios();
@@ -243,7 +279,34 @@ export function iniciarLogin(aoEntrar) {
     const senha = formLogin.elements.senha.value;
     if (celular.replace(/\D/g, "").length < 10) return mostrarErro(erro, "Informe o celular com DDD.");
     if (!senha) return mostrarErro(erro, "Informe a senha.");
-    enviar(formLogin, { acao: "login", celular, senha }, "Entrando…", (r) => concluir(r.nome || "", celular, r.termos || ""));
+    enviar(formLogin, { acao: "login", celular, senha }, "Entrando…", (r) => {
+      if (r.trocarSenha) abrirNovaSenha({ celular, senha });
+      else concluir(r.nome || "", celular, r.termos || "");
+    });
+  });
+
+  formEsqueci.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const erro = $("erroEsqueci");
+    erro.hidden = true;
+    const celular = formEsqueci.elements.celular.value.trim();
+    if (celular.replace(/\D/g, "").length < 10) return mostrarErro(erro, "Informe o celular com DDD.");
+    enviar(formEsqueci, { acao: "esqueci", celular }, "Enviando…", () => abrirNovaSenha({ celular }));
+  });
+
+  formNovaSenha.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const erro = $("erroNovaSenha");
+    erro.hidden = true;
+    const f = formNovaSenha.elements;
+    const { celular, senha } = pedidoSenha;
+    const codigo = f.codigo.value.trim();
+    const nova = f.nova.value.trim();
+    if (!senha && !/^\d{6}$/.test(codigo)) return mostrarErro(erro, "Informe o código de 6 dígitos.");
+    if (nova.length < MIN_SENHA) return mostrarErro(erro, `A senha deve ter pelo menos ${MIN_SENHA} caracteres.`);
+    if (nova !== f.confirmacao.value.trim()) return mostrarErro(erro, "As senhas não conferem.");
+    const dados = senha ? { acao: "trocarSenha", celular, senha, nova } : { acao: "redefinir", celular, codigo, nova };
+    enviar(formNovaSenha, dados, "Salvando…", (r) => concluir(r.nome || "", celular, r.termos || ""));
   });
 
   formCadastro.addEventListener("submit", (e) => {
@@ -271,7 +334,7 @@ export function iniciarLogin(aoEntrar) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dados.email)) return falha("Informe um e-mail válido.", "email");
     if (!dados.municipio) return falha("Selecione o município.", "municipio");
     if (!dados.funcao) return falha("Selecione a função.", "funcao");
-    if (dados.senha.length < 4) return falha("A senha deve ter pelo menos 4 caracteres.", "senha");
+    if (dados.senha.trim().length < MIN_SENHA) return falha(`A senha deve ter pelo menos ${MIN_SENHA} caracteres.`, "senha");
     if (dados.senha !== f.confirmacao.value) return falha("As senhas não conferem.", "confirmacao");
     if (!f.aceite.checked) return falha("Para se cadastrar, aceite os Termos de uso e a Política de privacidade.", "aceite");
     enviar(formCadastro, dados, "Cadastrando…", (r) => {

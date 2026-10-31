@@ -1,6 +1,6 @@
 // Cache dos arquivos do app para uso offline no campo.
 // Ao alterar qualquer arquivo listado, incremente a versão.
-const VERSAO = "ateg-cal-v28";
+const VERSAO = "ateg-cal-v29";
 const ARQUIVOS = [
   "./",
   "index.html",

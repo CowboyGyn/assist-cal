@@ -73,6 +73,9 @@
 [hidden] { display: none !important; }
 
 body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
   margin: 0;
   background: var(--fundo);
   color: var(--texto);
@@ -116,7 +119,15 @@ body {
   font-weight: 600;
 }
 
-main { max-width: 600px; margin: 0 auto; padding: 16px 16px 48px; }
+main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 16px 16px calc(10px + env(safe-area-inset-bottom));
+}
 
 /* ---------- Login ---------- */
 
@@ -176,7 +187,8 @@ button.primario:disabled { opacity: 0.7; cursor: progress; }
   display: grid;
   justify-items: center;
   gap: 4px;
-  margin: 10px 0 6px;
+  margin-top: auto; /* tela curta: fica no pé da tela */
+  padding-top: 28px;
   color: var(--texto-suave);
   font-size: 0.75rem;
 }
@@ -548,9 +560,9 @@ td .ponto { display: inline-block; width: 8px; height: 8px; margin-right: 6px; b
   }
   @page { size: A4; margin: 14mm 14mm 16mm; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  body { background: #fff; font-size: 11pt; }
-  .topo, form, .btn-pdf, .dica, .nota, .resultado > h2, .resultado > .sub { display: none !important; }
-  main { max-width: none; padding: 0; }
+  body { display: block; min-height: 0; background: #fff; font-size: 11pt; }
+  .topo, form, .btn-pdf, .dica, .nota, .rodape-app, .resultado > h2, .resultado > .sub { display: none !important; }
+  main { display: block; max-width: none; padding: 0; }
   .resultado { margin: 0; padding: 0; border: 0; box-shadow: none; }
   .so-impressao { display: block; }
   .resultado h3 { break-after: avoid; }

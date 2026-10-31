@@ -30,14 +30,24 @@
  *                        conexão no app.
  *   1.11.0 — 31/10/2026 — cadastro e aceite não mudam o formato das células: a tabela
  *                        da planilha recusa isso em colunas com tipo.
+ *   1.12.0 — 31/10/2026 — senhas guardadas protegidas (irreversíveis); recuperação por
+ *                        código no e-mail; senha provisória escrita na planilha pede
+ *                        troca no login; texto digitado nunca vira fórmula na planilha.
  */
 
-const VERSAO = "1.11.0";
+const VERSAO = "1.12.0";
 const PLANILHA_ID = "1SFTDBS8Jiz3yPBbbdkgb8MkWZCbKU9Ed8wjDxNR7pAA";
 const ABA = ""; // vazio = primeira aba
 const MAX_TENTATIVAS = 5;
 const BLOQUEIO_SEGUNDOS = 15 * 60;
 const MAX_CADASTROS_HORA = 30; // proteção contra cadastros em massa
+const MIN_SENHA = 6;
+const MAX_SENHA = 40;
+const PREFIXO_HASH = "h1$"; // senha protegida; o que não começa assim é senha provisória
+const PROP_CHAVE_SENHAS = "CHAVE_SENHAS"; // fica nas propriedades do script, fora do código público
+const VALIDADE_CODIGO_SEGUNDOS = 15 * 60;
+const MAX_CODIGOS_HORA = 3; // por celular
+const MAX_ERROS_CODIGO = 5;
 const AVISAR_CADASTRO_POR_EMAIL = true;
 
 // Colunas da planilha: nome do cabeçalho criado e padrão para reconhecer um existente.
@@ -87,6 +97,9 @@ function doPost(e) {
   try {
     if (dados.acao === "login") return responder(login(String(dados.celular || ""), String(dados.senha || "")));
     if (dados.acao === "cadastro") return responder(cadastrar(dados));
+    if (dados.acao === "esqueci") return responder(enviarCodigo(String(dados.celular || "")));
+    if (dados.acao === "redefinir") return responder(redefinirSenha(dados));
+    if (dados.acao === "trocarSenha") return responder(trocarSenha(dados));
     if (dados.acao === "uso") return responder(registrarUso(dados));
     if (dados.acao === "aceite") return responder(registrarAceite(dados));
   } catch (err) {
@@ -100,26 +113,175 @@ function doPost(e) {
 
 function login(celular, senha) {
   const chave = chaveCelular(celular);
-  if (!chave || !senha) return { ok: false, erro: "Informe o celular e a senha." };
+  if (!chave || !senha.trim()) return { ok: false, erro: "Informe o celular e a senha." };
 
+  const conferido = conferirSenha(chave, senha);
+  if (conferido.erro) return { ok: false, erro: conferido.erro };
+  const resposta = sessao(conferido.usuario);
+  if (!senhaProtegida(conferido.usuario.senha)) resposta.trocarSenha = true;
+  return resposta;
+}
+
+// termos: versão já aceita (vazio = o app pede o aceite).
+function sessao(usuario) {
+  return { ok: true, nome: String(usuario.nome || "").trim(), termos: String(usuario.termos || "").trim() };
+}
+
+// Devolve { usuario } ou { erro }, contando as tentativas erradas do celular.
+function conferirSenha(chave, senha) {
   const cache = CacheService.getScriptCache();
   const chaveCache = "tentativas_" + chave;
   const tentativas = Number(cache.get(chaveCache) || 0);
   if (tentativas >= MAX_TENTATIVAS) {
-    return { ok: false, erro: "Muitas tentativas. Aguarde 15 minutos ou use “Esqueci a senha”." };
+    return { erro: "Muitas tentativas. Aguarde 15 minutos ou use “Esqueci a senha”." };
   }
 
   const usuario = buscarUsuario(chave);
-  if (!usuario || String(usuario.senha).trim() !== senha.trim()) {
+  if (!usuario || !senhaConfere(usuario.senha, senha)) {
     cache.put(chaveCache, String(tentativas + 1), BLOQUEIO_SEGUNDOS);
-    return { ok: false, erro: "Celular ou senha incorretos." };
+    return { erro: "Celular ou senha incorretos." };
   }
   if (usuario.ativo === false) {
-    return { ok: false, erro: "Acesso desativado. Fale com a Zootécnica ATeG." };
+    return { erro: "Acesso desativado. Fale com a Zootécnica ATeG." };
   }
   cache.remove(chaveCache);
-  // termos: versão já aceita (vazio = o app pede o aceite).
-  return { ok: true, nome: String(usuario.nome || "").trim(), termos: String(usuario.termos || "").trim() };
+  return { usuario: usuario };
+}
+
+// ---------- Senhas protegidas ----------
+
+function senhaProtegida(guardada) {
+  return String(guardada).trim().indexOf(PREFIXO_HASH) === 0;
+}
+
+function senhaConfere(guardada, senha) {
+  const g = String(guardada).trim();
+  const s = senha.trim();
+  if (!g || !s) return false;
+  return senhaProtegida(g) ? g === gerarHash(s, g.split("$")[1]) : g === s;
+}
+
+function protegerSenha(senha) {
+  return gerarHash(senha.trim(), Utilities.getUuid().replace(/-/g, "").slice(0, 16));
+}
+
+// HMAC com a chave do script: sem ela, nem quem tiver a planilha consegue testar senhas.
+function gerarHash(valor, sal) {
+  const assinatura = Utilities.computeHmacSha256Signature(sal + ":" + valor, chaveSenhas(), Utilities.Charset.UTF_8);
+  return PREFIXO_HASH + sal + "$" + Utilities.base64Encode(assinatura);
+}
+
+// Só testarLeitura cria a chave: trocá-la invalidaria todas as senhas.
+function chaveSenhas() {
+  const chave = PropertiesService.getScriptProperties().getProperty(PROP_CHAVE_SENHAS);
+  if (!chave) throw new Error("Chave de senhas ausente: rode testarLeitura no editor.");
+  return chave;
+}
+
+function erroNovaSenha(nova) {
+  if (nova.length < MIN_SENHA || nova.length > MAX_SENHA) {
+    return "A senha deve ter de " + MIN_SENHA + " a " + MAX_SENHA + " caracteres.";
+  }
+  return "";
+}
+
+function gravarSenha(usuario, nova) {
+  const trava = LockService.getScriptLock();
+  if (!trava.tryLock(20000)) return false;
+  try {
+    const aba = abrirAba();
+    const col = garantirColunas(aba);
+    aba.getRange(usuario.linha, col.senha + 1).setValue(protegerSenha(nova));
+    SpreadsheetApp.flush();
+  } finally {
+    trava.releaseLock();
+  }
+  return true;
+}
+
+// Senha provisória: quem entrou com ela escolhe uma senha própria antes de usar o app.
+function trocarSenha(d) {
+  const chave = chaveCelular(d.celular);
+  const senha = String(d.senha || "");
+  const nova = String(d.nova || "").trim();
+  if (!chave || !senha.trim()) return { ok: false, erro: "Informe o celular e a senha." };
+  const conferido = conferirSenha(chave, senha);
+  if (conferido.erro) return { ok: false, erro: conferido.erro };
+  const erro = erroNovaSenha(nova);
+  if (erro) return { ok: false, erro: erro };
+  if (nova === senha.trim()) return { ok: false, erro: "Escolha uma senha diferente da provisória." };
+  if (!gravarSenha(conferido.usuario, nova)) return { ok: false, erro: "Servidor ocupado. Tente de novo." };
+  return sessao(conferido.usuario);
+}
+
+// ---------- Recuperação de senha pelo e-mail ----------
+
+// A resposta é igual exista ou não o cadastro: o app não revela quem está na planilha.
+function enviarCodigo(celular) {
+  const chave = chaveCelular(celular);
+  if (!chave) return { ok: false, erro: "Informe o celular com DDD." };
+
+  const cache = CacheService.getScriptCache();
+  const chavePedidos = "esqueci_" + chave;
+  const pedidos = Number(cache.get(chavePedidos) || 0);
+  if (pedidos >= MAX_CODIGOS_HORA) {
+    return { ok: false, erro: "Muitos pedidos. Aguarde uma hora ou fale pelo WhatsApp." };
+  }
+  cache.put(chavePedidos, String(pedidos + 1), 3600);
+
+  const usuario = buscarUsuario(chave);
+  if (!usuario || usuario.ativo === false || !usuario.email) return { ok: true };
+
+  const numero = parseInt(Utilities.getUuid().replace(/-/g, "").slice(0, 12), 16) % 1000000;
+  const codigo = String(numero).padStart(6, "0");
+  cache.put("codigo_" + chave, gerarHash(codigo, chave), VALIDADE_CODIGO_SEGUNDOS);
+  cache.remove("codigo_erros_" + chave);
+  try {
+    MailApp.sendEmail(
+      usuario.email,
+      "ATeG Cal — código para criar nova senha",
+      "Seu código é " + codigo + ".\n\n" +
+        "Digite o código no aplicativo para criar uma nova senha. Ele vale por 15 minutos.\n" +
+        "Se você não pediu, ignore este e-mail: sua senha continua a mesma.",
+    );
+  } catch (err) {
+    console.warn("Falha ao enviar código de senha: " + err);
+    return { ok: false, erro: "Não foi possível enviar o e-mail. Fale pelo WhatsApp." };
+  }
+  return { ok: true };
+}
+
+function redefinirSenha(d) {
+  const chave = chaveCelular(d.celular);
+  const codigo = String(d.codigo || "").trim();
+  const nova = String(d.nova || "").trim();
+  if (!chave || !/^\d{6}$/.test(codigo)) return { ok: false, erro: "Informe o código de 6 dígitos." };
+  const erro = erroNovaSenha(nova);
+  if (erro) return { ok: false, erro: erro };
+
+  const cache = CacheService.getScriptCache();
+  const chaveCodigo = "codigo_" + chave;
+  const chaveErros = "codigo_erros_" + chave;
+  const guardado = cache.get(chaveCodigo);
+  if (!guardado) return { ok: false, erro: "Código vencido. Peça um novo." };
+  if (guardado !== gerarHash(codigo, chave)) {
+    const erros = Number(cache.get(chaveErros) || 0) + 1;
+    if (erros >= MAX_ERROS_CODIGO) {
+      cache.remove(chaveCodigo);
+      cache.remove(chaveErros);
+      return { ok: false, erro: "Muitos erros. Peça um novo código." };
+    }
+    cache.put(chaveErros, String(erros), VALIDADE_CODIGO_SEGUNDOS);
+    return { ok: false, erro: "Código incorreto." };
+  }
+
+  const usuario = buscarUsuario(chave);
+  if (!usuario || usuario.ativo === false) return { ok: false, erro: "Acesso desativado. Fale com a Zootécnica ATeG." };
+  if (!gravarSenha(usuario, nova)) return { ok: false, erro: "Servidor ocupado. Tente de novo." };
+  cache.remove(chaveCodigo);
+  cache.remove(chaveErros);
+  cache.remove("tentativas_" + chave);
+  return sessao(usuario);
 }
 
 function buscarUsuario(chave) {
@@ -137,6 +299,7 @@ function buscarUsuario(chave) {
     return {
       nome: col.nome < 0 ? "" : linha[col.nome],
       senha: linha[col.senha],
+      email: col.email < 0 ? "" : String(linha[col.email]).trim(),
       ativo: ativo,
       termos: col.termosVersao < 0 ? "" : linha[col.termosVersao],
       linha: i + 1,
@@ -158,7 +321,7 @@ function cadastrar(d) {
   const novo = {
     nome: limpar(d.nome, 80),
     celular: limpar(d.celular, 30),
-    senha: String(d.senha || ""),
+    senha: String(d.senha || "").trim(),
     municipio: limpar(d.municipio, 60),
     uf: limpar(d.uf, 2).toUpperCase(),
     email: limpar(d.email, 100).toLowerCase(),
@@ -168,7 +331,8 @@ function cadastrar(d) {
 
   if (novo.nome.length < 3) return { ok: false, erro: "Informe o nome completo." };
   if (!celularCompleto(novo.celular)) return { ok: false, erro: "Informe o celular completo, com DDD e o 9 na frente: (62) 9 0000-0000." };
-  if (novo.senha.length < 4 || novo.senha.length > 40) return { ok: false, erro: "A senha deve ter de 4 a 40 caracteres." };
+  const erroSenha = erroNovaSenha(novo.senha);
+  if (erroSenha) return { ok: false, erro: erroSenha };
   if (!novo.municipio || !/^[A-Z]{2}$/.test(novo.uf)) return { ok: false, erro: "Informe o município e a UF." };
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(novo.email)) return { ok: false, erro: "Informe um e-mail válido." };
   if (!novo.funcao) return { ok: false, erro: "Informe a função." };
@@ -192,18 +356,18 @@ function cadastrar(d) {
     const col = garantirColunas(aba);
     const largura = aba.getLastColumn();
     const linha = new Array(largura).fill("");
-    linha[col.nome] = novo.nome;
+    linha[col.nome] = semFormula(novo.nome);
     linha[col.celular] = formatarCelular(chave, novo.celular);
-    linha[col.senha] = comoTexto(novo.senha);
+    linha[col.senha] = protegerSenha(novo.senha);
     linha[col.ativo] = "sim";
     if (col.uf >= 0) {
-      linha[col.municipio] = novo.municipio;
+      linha[col.municipio] = semFormula(novo.municipio);
       linha[col.uf] = novo.uf;
     } else {
-      linha[col.municipio] = novo.municipio + "/" + novo.uf;
+      linha[col.municipio] = semFormula(novo.municipio + "/" + novo.uf);
     }
-    linha[col.email] = novo.email;
-    linha[col.funcao] = novo.funcao;
+    linha[col.email] = semFormula(novo.email);
+    linha[col.funcao] = semFormula(novo.funcao);
     linha[col.cadastroEm] = Utilities.formatDate(new Date(), "America/Sao_Paulo", "dd/MM/yyyy HH:mm");
     const termos = limpar(d.termos, 10);
     if (termos) {
@@ -321,11 +485,11 @@ function registrarUso(d) {
     if (isNaN(quando) || quando.getTime() > agora + 3600000 || quando.getTime() < agora - 90 * 86400000) continue;
     linhas.push([
       quando,
-      String(usuario.nome || "").trim(),
+      semFormula(String(usuario.nome || "").trim()),
       formatarCelular(chave, d.celular),
       MODULOS_USO[ev.modulo],
       ACOES_USO[ev.acao],
-      versaoApp,
+      semFormula(versaoApp),
     ]);
   }
   if (!linhas.length) return { ok: true, gravados: 0 };
@@ -444,7 +608,7 @@ function garantirLinhas(aba, ultimaLinha) {
 
 // ---------- Utilidades ----------
 
-// DDD + 8 últimos dígitos: "(62) 9 9117-6151", "5562991176151" e "62 9117-6151" viram "6291176151".
+// DDD + 8 últimos dígitos: "(62) 9 9999-9999", "5562999999999" e "62 9999-9999" viram "62999999999".
 function chaveCelular(valor) {
   let d = String(valor).replace(/\D/g, "");
   if (d.length >= 12 && d.indexOf("55") === 0) d = d.slice(2);
@@ -459,7 +623,7 @@ function celularCompleto(valor) {
   return /^[1-9]{2}9\d{8}$/.test(d);
 }
 
-// Grava o celular sempre no formato (62) 9 9117-6151.
+// Grava o celular sempre no formato (62) 9 9999-9999.
 function formatarCelular(chave, original) {
   const tem9 = String(original).replace(/\D/g, "").replace(/^55(?=\d{11})/, "").length === 11;
   const fim = chave.slice(2);
@@ -470,6 +634,12 @@ function formatarCelular(chave, original) {
 // setNumberFormat em coluna com tipo, e o erro só aparece na gravação seguinte.
 function comoTexto(valor) {
   return "'" + valor;
+}
+
+// Texto digitado por quem usa o app nunca pode virar fórmula: uma fórmula na planilha leria
+// as outras linhas e poderia enviá-las para fora.
+function semFormula(valor) {
+  return /^[=+\-@]/.test(valor) ? comoTexto(valor) : valor;
 }
 
 function limpar(valor, max) {
@@ -491,10 +661,53 @@ function responder(obj) {
  * à planilha e o envio de e-mail, e mostra a versão no registro de execução.
  */
 function testarLeitura() {
+  const propriedades = PropertiesService.getScriptProperties();
+  if (!propriedades.getProperty(PROP_CHAVE_SENHAS)) {
+    propriedades.setProperty(PROP_CHAVE_SENHAS, Utilities.getUuid() + Utilities.getUuid());
+  }
+  Logger.log("Chave de senhas pronta.");
   const aba = abrirAba();
   Logger.log("ATeG Cal login v" + VERSAO + " — planilha: " + aba.getParent().getName() + " — linhas: " + aba.getLastRow());
   Logger.log("Cota de e-mails restante hoje: " + MailApp.getRemainingDailyQuota());
   Logger.log("Aba de uso pronta: " + abaUso().getName());
   criarResumo(aba.getParent());
   Logger.log("Resumo de uso atualizado — idioma da planilha: " + aba.getParent().getSpreadsheetLocale());
+  Logger.log("Fórmulas na aba de usuários: " + listarFormulas(aba));
+  Logger.log("Fórmulas na aba Uso: " + listarFormulas(abaUso()));
+}
+
+// Essas abas só guardam dados: fórmula nelas pode ser sinal de cadastro malicioso.
+function listarFormulas(aba) {
+  const achadas = [];
+  aba.getDataRange().getFormulas().forEach((linha, l) => {
+    linha.forEach((formula, c) => {
+      if (formula) achadas.push(aba.getRange(l + 1, c + 1).getA1Notation());
+    });
+  });
+  return achadas.length ? achadas.join(", ") : "nenhuma";
+}
+
+/**
+ * Rode uma vez no editor, logo depois de implantar a versão 1.12.0: protege todas as senhas
+ * que ainda estão legíveis. Depois disso, ninguém mais consegue ler as senhas na planilha.
+ */
+function protegerSenhas() {
+  const trava = LockService.getScriptLock();
+  if (!trava.tryLock(20000)) throw new Error("Servidor ocupado. Rode de novo.");
+  try {
+    const aba = abrirAba();
+    const valores = aba.getDataRange().getDisplayValues();
+    const col = localizarColunas(valores[0]);
+    let protegidas = 0;
+    for (let i = 1; i < valores.length; i++) {
+      const senha = String(valores[i][col.senha]).trim();
+      if (!chaveCelular(valores[i][col.celular]) || !senha || senhaProtegida(senha)) continue;
+      aba.getRange(i + 1, col.senha + 1).setValue(protegerSenha(senha));
+      protegidas++;
+    }
+    SpreadsheetApp.flush();
+    Logger.log("Senhas protegidas agora: " + protegidas);
+  } finally {
+    trava.releaseLock();
+  }
 }

@@ -53,6 +53,11 @@ Para conferir qual versão está no ar, abra o endereço `/exec` no navegador: a
 
 - O login vale por 30 dias no aparelho (`DIAS_SESSAO` em `js/config.js`), inclusive offline.
 - Após 5 senhas erradas, aquele celular fica bloqueado por 15 minutos.
-- "Esqueci a senha" abre o WhatsApp de suporte com uma mensagem pronta; a senha é
-  conferida e informada por você.
+- As senhas ficam protegidas na coluna Senha (começam com `h1$`) e ninguém consegue lê-las.
+  Depois de implantar a 1.12.0, rode `protegerSenhas` uma vez para proteger as antigas.
+- "Esqueci a senha" envia um código de 6 dígitos ao e-mail do cadastro. Vale por 15 minutos.
+- Quem não tem o e-mail fala pelo WhatsApp de suporte. Para ajudar: escreva uma senha
+  provisória por cima, na coluna Senha dessa pessoa, e envie a ela. No login, o app pede uma senha nova.
+- A chave `CHAVE_SENHAS` fica em Configurações do projeto → Propriedades do script. Não a
+  apague nem a altere: sem ela, todos precisariam recuperar a senha.
 - Quem for desativado ou trocar de senha continua com acesso até a sessão de 30 dias vencer.
