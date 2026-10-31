@@ -30,26 +30,55 @@ test("com animais: dias de ocupação pelo consumo vindo do pasto", () => {
   const r = calcularCapacidade({ ...base, lotes: [{ tipo: "vacas-lactacao", animais: 50, consumoPct: 3 }] });
   const l = r.lotes[0];
   assert.equal(l.pesoKg, 500);
-  perto(l.consumoAnimalKg, 9); // 500 kg × 3% × 60%
-  perto(r.consumoDiaKg, 450);
-  perto(r.diasOcupacao, 5.56);
-  perto(r.capacidadeUaHa, 2500 / (11.25 * (30 + 2500 / 450)));
+  perto(l.consumoAnimalKg, 8.46); // 500 kg × 1,1% ÷ 65% de FDN
+  assert.equal(l.limitadoPeloFdn, true);
+  perto(r.consumoDiaKg, 423.08);
+  perto(r.diasOcupacao, 5.91);
+  perto(r.capacidadeUaHa, 2500 / (11.25 * (30 + 2500 / 423.08)));
   assert.equal(r.piquetes, 7);
   perto(r.uaLote, 55.56);
 });
 
-test("lotes somam consumo e aceitam peso, consumo e parte do pasto próprios", () => {
+test("o concentrado limita o pasto quando sobra menos que o limite pelo FDN", () => {
+  const r = calcularCapacidade({ ...base, lotes: [{ tipo: "vacas-lactacao", animais: 1, consumoPct: 3, concentradoKg: 8 }] });
+  const l = r.lotes[0];
+  perto(l.consumoTotalKg, 15);
+  perto(l.semConcentradoKg, 7);
+  assert.equal(l.limitadoPeloFdn, false);
+  perto(l.consumoAnimalKg, 7);
+});
+
+test("FDN maior reduz o consumo de pasto", () => {
+  const consumo = (fdnPct) => calcularCapacidade({ ...base, fdnPct, lotes: [{ tipo: "vacas-lactacao", animais: 1, consumoPct: 3 }] }).lotes[0].consumoAnimalKg;
+  perto(consumo(55), 10);
+  perto(consumo(75), 7.33);
+});
+
+test("corte usa capacidade de FDN de 1,3% do peso", () => {
+  const r = calcularCapacidade({ ...base, lotes: [{ tipo: "matrizes-paridas", animais: 1 }] });
+  assert.equal(r.lotes[0].capacidadeFdnPct, 1.3);
+  perto(r.lotes[0].consumoAnimalKg, 9);
+});
+
+test("sem FDN usa 65% e deixa isso marcado", () => {
+  const r = calcularCapacidade(base);
+  assert.equal(r.fdnPct, 65);
+  assert.equal(r.fdnEstimado, true);
+  assert.equal(calcularCapacidade({ ...base, fdnPct: 60 }).fdnEstimado, false);
+});
+
+test("lotes somam consumo e aceitam peso e capacidade de FDN próprios", () => {
   const r = calcularCapacidade({
     ...base,
     areaHa: 2,
     lotes: [
-      { tipo: "recria", animais: 10, pesoKg: 300, consumoPct: 2.5, pastoPct: 100 },
+      { tipo: "recria", animais: 10, pesoKg: 300, capacidadeFdnPct: 1.3 },
       { tipo: "matrizes-secas", animais: 10 },
     ],
   });
-  perto(r.lotes[0].consumoDiaKg, 75);
-  perto(r.lotes[1].consumoDiaKg, 89.78);
-  perto(r.diasOcupacao, 5000 / 164.78);
+  perto(r.lotes[0].consumoDiaKg, 60);
+  perto(r.lotes[1].consumoDiaKg, 90);
+  perto(r.diasOcupacao, 5000 / 150);
 });
 
 test("cenários mostram quantas UA cabem em cada duração", () => {
@@ -76,7 +105,7 @@ test("consumo da vaca em lactação sobe com o leite, pela equação da NASEM 20
   perto(consumoReferenciaPct("vacas-lactacao", 500, 15), 3.22, 0.01);
   assert.ok(consumoLactacaoKg(500, 30) > consumoLactacaoKg(500, 15));
   const r = calcularCapacidade({ ...base, lotes: [{ tipo: "vacas-lactacao", animais: 10, leiteKg: 30 }] });
-  perto(r.lotes[0].consumoAnimalKg, consumoLactacaoKg(500, 30) * 0.6);
+  perto(r.lotes[0].consumoTotalKg, consumoLactacaoKg(500, 30));
   assert.equal(r.lotes[0].leiteKg, 30);
 });
 
@@ -103,6 +132,8 @@ test("recusa dados inválidos", () => {
   assert.throws(() => calcularCapacidade({ ...base, pesoUmidoG: 100, pesoSecoG: 150 }), /peso seco/);
   assert.throws(() => calcularCapacidade({ ...base, aproveitamentoPct: 0 }), /aproveitamento/);
   assert.throws(() => calcularCapacidade({ ...base, lotes: [{ tipo: "recria", animais: 0 }] }), /animais/);
-  assert.throws(() => calcularCapacidade({ ...base, lotes: [{ tipo: "recria", animais: 5, pastoPct: 0 }] }), /pasto/);
+  assert.throws(() => calcularCapacidade({ ...base, fdnPct: 0 }), /FDN/);
+  assert.throws(() => calcularCapacidade({ ...base, lotes: [{ tipo: "recria", animais: 5, concentradoKg: 50 }] }), /concentrado/);
+  assert.throws(() => calcularCapacidade({ ...base, lotes: [{ tipo: "recria", animais: 5, capacidadeFdnPct: 0 }] }), /FDN/);
   assert.throws(() => calcularCapacidade({ ...base, lotes: [{ tipo: "x", animais: 5 }] }), /categoria/);
 });

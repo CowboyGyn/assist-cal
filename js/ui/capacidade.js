@@ -2,9 +2,11 @@
 import {
   calcularCapacidade,
   consumoReferenciaPct,
+  capacidadeFdnPadrao,
   CATEGORIAS,
   CORTES,
   LEITE_PADRAO_KG,
+  FDN_PADRAO,
   KG_UA,
   CONSUMO_UA_PCT,
   MS_PADRAO,
@@ -27,8 +29,8 @@ import {
 } from "./comum.js";
 
 const CHAVE_STORAGE = "ateg-cal:capacidade";
-const CAMPOS_GERAIS = ["fazenda", "piquete", "areaHa", "msPct", "pesoUmidoG", "pesoSecoG", "aproveitamentoPct", "descansoDias", "ocupacaoDias"];
-const CAMPOS_LOTE = ["tipo", "animais", "pesoKg", "leiteKg", "consumoPct", "pastoPct"];
+const CAMPOS_GERAIS = ["fazenda", "piquete", "areaHa", "msPct", "fdnPct", "pesoUmidoG", "pesoSecoG", "aproveitamentoPct", "descansoDias", "ocupacaoDias"];
+const CAMPOS_LOTE = ["tipo", "animais", "pesoKg", "leiteKg", "consumoPct", "concentradoKg", "capacidadeFdnPct"];
 const CV_ALTO = 30; // pontos muito diferentes: o piquete pede mais amostras
 const AMOSTRA_ALTA_KG = 15; // acima disso, provável digitação em gramas
 
@@ -84,7 +86,7 @@ function atualizarLote(item) {
   const c = CATEGORIAS[tipo];
   const campo = (nome) => item.querySelector(`[data-campo="${nome}"]`);
   campo("pesoKg").placeholder = c.pesoKg;
-  campo("pastoPct").placeholder = c.pastoPct;
+  campo("capacidadeFdnPct").placeholder = fmt(capacidadeFdnPadrao(tipo), 2);
   campo("leiteKg").closest(".campo").hidden = tipo !== "vacas-lactacao";
   const peso = numero(campo("pesoKg").value);
   const pct = consumoReferenciaPct(tipo, peso > 0 ? peso : null, numero(campo("leiteKg").value));
@@ -185,6 +187,7 @@ form.addEventListener("submit", (e) => {
       areaHa: numero(estado.areaHa),
       amostrasKg: estado.pontos.map(numero).filter((v) => v !== null),
       msPct: numero(estado.msPct),
+      fdnPct: numero(estado.fdnPct),
       pesoUmidoG: numero(estado.pesoUmidoG),
       pesoSecoG: numero(estado.pesoSecoG),
       corte: estado.corte,
@@ -198,7 +201,8 @@ form.addEventListener("submit", (e) => {
         pesoKg: numero(l.pesoKg),
         leiteKg: numero(l.leiteKg),
         consumoPct: numero(l.consumoPct),
-        pastoPct: numero(l.pastoPct),
+        concentradoKg: numero(l.concentradoKg),
+        capacidadeFdnPct: numero(l.capacidadeFdnPct),
       })),
     });
   } catch (err) {
@@ -252,6 +256,9 @@ function avisos(r) {
   if (r.msOrigem === "referencia") {
     lista.push(`Matéria seca estimada em ${fmt(MS_PADRAO)}%. Meça no micro-ondas: esse valor muda bastante o resultado.`);
   }
+  if (r.fdnEstimado && r.lotes.length) {
+    lista.push(`FDN do pasto estimado em ${fmt(FDN_PADRAO)}%. Use a análise do capim: esse valor muda o consumo e os dias de ocupação.`);
+  }
   if (r.diasOcupacao !== null && r.diasOcupacao < 1) {
     lista.push("A forragem útil dura menos de um dia para este lote. Reduza os animais ou use uma área maior.");
   }
@@ -289,7 +296,8 @@ function renderizarResultado(r, fazenda, piquete) {
     </tbody></table>
     <p class="nota">A capacidade considera 1 UA = ${KG_UA} kg, consumindo ${fmt(CONSUMO_UA_PCT, 1)}% do peso em MS só de pasto, e não
       soma o capim que cresce durante a ocupação. O aproveitamento é uma referência de manejo: ajuste pelo que você observa na saída.
-      Consumo de referência baseado na NASEM (leite, 2021; corte, 2016), para pasto de qualidade média: troque pelo valor da fazenda quando tiver.</p>`;
+      No lote, o consumo de pasto é o menor valor entre o limite pelo FDN e o consumo total menos o concentrado. O consumo total
+      tem como base a NASEM (leite, 2021; corte, 2016): troque pelos valores da fazenda quando tiver.</p>`;
 }
 
 function renderizarForragem(r) {
@@ -308,18 +316,19 @@ function renderizarForragem(r) {
 function renderizarLotes(r) {
   const linhas = r.lotes
     .map((l) => `<tr>
-        <td>${escapar(l.nome)}<span class="decimal">${fmt(l.animais)} × ${fmt(l.pesoKg)} kg</span></td>
-        <td>${fmt(l.ua, 1)}</td>
-        <td>${fmt(l.consumoAnimalKg, 1)}</td>
+        <td>${escapar(l.nome)}<span class="decimal">${fmt(l.animais)} × ${fmt(l.pesoKg)} kg · ${fmt(l.ua, 1)} UA</span></td>
+        <td>${l.limitadoPeloFdn ? `<b>${fmt(l.limiteFdnKg, 1)}</b>` : fmt(l.limiteFdnKg, 1)}</td>
+        <td>${l.limitadoPeloFdn ? fmt(l.semConcentradoKg, 1) : `<b>${fmt(l.semConcentradoKg, 1)}</b>`}</td>
         <td>${fmt(l.consumoDiaKg)}</td>
       </tr>`)
     .join("");
   return `
-    <h3>Consumo do lote</h3>
+    <h3>Consumo de pasto do lote</h3>
+    <p class="nota">Em negrito, o valor usado em cada categoria: o menor dos dois.</p>
     <table>
-      <thead><tr><th>Categoria</th><th>UA</th><th>kg MS de pasto/animal/dia</th><th>kg MS/dia</th></tr></thead>
+      <thead><tr><th>Categoria</th><th>Pelo FDN (kg MS/animal)</th><th>Total − concentrado (kg MS/animal)</th><th>Lote (kg MS/dia)</th></tr></thead>
       <tbody>${linhas}</tbody>
-      <tfoot><tr><td>Total</td><td>${fmt(r.uaLote, 1)}</td><td></td><td>${fmt(r.consumoDiaKg)}</td></tr></tfoot>
+      <tfoot><tr><td>Total · ${fmt(r.uaLote, 1)} UA</td><td></td><td></td><td>${fmt(r.consumoDiaKg)}</td></tr></tfoot>
     </table>`;
 }
 
@@ -341,12 +350,13 @@ function renderizarPremissas(r, piquete) {
     ["Piquete", `${piquete ? `${escapar(piquete)} · ` : ""}${fmt(r.areaHa, 2)} ha`],
     ["Coleta", `${fmt(r.amostras.pontos)} ${r.amostras.pontos === 1 ? "ponto" : "pontos"} de 1 m² · corte ${CORTES[r.corte].nome.toLowerCase()}`],
     ["Matéria seca", `${fmt(r.msPct, 1)}% (${origemMs})`],
+    ["FDN do pasto", `${fmt(r.fdnPct, 1)}%${r.fdnEstimado ? " (referência)" : ""}`],
     ["Aproveitamento", `${fmt(r.aproveitamentoPct)}%`],
     ["Descanso", `${fmt(r.descansoDias)} dias`],
     ["Unidade animal", `${KG_UA} kg · consumo de ${fmt(CONSUMO_UA_PCT, 1)}% do peso em MS`],
     ...r.lotes.map((l) => [
       l.nome,
-      `${fmt(l.animais)} animais · ${fmt(l.pesoKg)} kg${l.leiteKg === null ? "" : ` · ${fmt(l.leiteKg, 1)} kg de leite/dia`} · consumo de ${fmt(l.consumoPct, 1)}% do peso · ${fmt(l.pastoPct)}% vindo do pasto`,
+      `${fmt(l.animais)} animais · ${fmt(l.pesoKg)} kg${l.leiteKg === null ? "" : ` · ${fmt(l.leiteKg, 1)} kg de leite/dia`} · consumo total de ${fmt(l.consumoPct, 1)}% do peso · concentrado de ${fmt(l.concentradoKg, 1)} kg MS · capacidade de FDN de ${fmt(l.capacidadeFdnPct, 2)}% do peso`,
     ]),
   ];
   return premissasRelatorio(linhas);
@@ -355,6 +365,7 @@ function renderizarPremissas(r, piquete) {
 ativarPdf(resultado, () => ["Capacidade de suporte", form.elements.fazenda.value.trim()], "capacidade-suporte");
 
 form.elements.msPct.placeholder = MS_PADRAO;
+form.elements.fdnPct.placeholder = FDN_PADRAO;
 form.elements.descansoDias.placeholder = DESCANSO_PADRAO;
 form.elements.ocupacaoDias.placeholder = OCUPACAO_PADRAO;
 restaurar();

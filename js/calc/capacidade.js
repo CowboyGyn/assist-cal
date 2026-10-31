@@ -4,6 +4,7 @@
 export const KG_UA = 450;
 export const CONSUMO_UA_PCT = 2.5;
 export const MS_PADRAO = 22;
+export const FDN_PADRAO = 65;
 export const DESCANSO_PADRAO = 30;
 export const OCUPACAO_PADRAO = 3;
 export const PONTOS_RECOMENDADOS = 8; // Embrapa: de 8 a 10 pontos por piquete
@@ -20,19 +21,24 @@ export const CORTES = {
 // Vaca em lactação sai da equação, pela produção. Touros, novilhas, bezerros ao pé e
 // equinos não têm valor confirmado na NASEM: ficam como referência de campo.
 export const CATEGORIAS = {
-  "vacas-lactacao": { nome: "Vacas em lactação", grupo: "Leite", pesoKg: 500, pastoPct: 60 },
-  "vacas-secas": { nome: "Vacas secas", grupo: "Leite", pesoKg: 500, consumoPct: 1.7, pastoPct: 85 },
-  "novilhas-leite": { nome: "Novilhas (leite)", grupo: "Leite", pesoKg: 330, consumoPct: 2.4, pastoPct: 85 },
-  bezerras: { nome: "Bezerras desaleitadas", grupo: "Leite", pesoKg: 120, consumoPct: 3.1, pastoPct: 50 },
-  "matrizes-secas": { nome: "Matrizes solteiras ou gestantes", grupo: "Corte", pesoKg: 450, consumoPct: 2.1, pastoPct: 95 },
-  "matrizes-paridas": { nome: "Matrizes paridas", grupo: "Corte", pesoKg: 450, consumoPct: 2.4, pastoPct: 95 },
-  touros: { nome: "Touros", grupo: "Corte", pesoKg: 700, consumoPct: 2.1, pastoPct: 95 },
-  recria: { nome: "Recria (corte)", grupo: "Corte", pesoKg: 250, consumoPct: 2.4, pastoPct: 85 },
-  engorda: { nome: "Engorda / terminação", grupo: "Corte", pesoKg: 420, consumoPct: 2.4, pastoPct: 60 },
-  "bezerros-pe": { nome: "Bezerros ao pé", grupo: "Corte", pesoKg: 120, consumoPct: 1.0, pastoPct: 100 },
-  equinos: { nome: "Equinos", grupo: "Outros", pesoKg: 400, consumoPct: 2.0, pastoPct: 100 },
-  outra: { nome: "Outra categoria", grupo: "Outros", pesoKg: 300, consumoPct: 2.2, pastoPct: 80 },
+  "vacas-lactacao": { nome: "Vacas em lactação", grupo: "Leite", pesoKg: 500 },
+  "vacas-secas": { nome: "Vacas secas", grupo: "Leite", pesoKg: 500, consumoPct: 1.7 },
+  "novilhas-leite": { nome: "Novilhas (leite)", grupo: "Leite", pesoKg: 330, consumoPct: 2.4 },
+  bezerras: { nome: "Bezerras desaleitadas", grupo: "Leite", pesoKg: 120, consumoPct: 3.1 },
+  "matrizes-secas": { nome: "Matrizes solteiras ou gestantes", grupo: "Corte", pesoKg: 450, consumoPct: 2.1 },
+  "matrizes-paridas": { nome: "Matrizes paridas", grupo: "Corte", pesoKg: 450, consumoPct: 2.4 },
+  touros: { nome: "Touros", grupo: "Corte", pesoKg: 700, consumoPct: 2.1 },
+  recria: { nome: "Recria (corte)", grupo: "Corte", pesoKg: 250, consumoPct: 2.4 },
+  engorda: { nome: "Engorda / terminação", grupo: "Corte", pesoKg: 420, consumoPct: 2.4 },
+  "bezerros-pe": { nome: "Bezerros ao pé", grupo: "Corte", pesoKg: 120, consumoPct: 1.0 },
+  equinos: { nome: "Equinos", grupo: "Outros", pesoKg: 400, consumoPct: 2.0 },
+  outra: { nome: "Outra categoria", grupo: "Outros", pesoKg: 300, consumoPct: 2.2 },
 };
+
+// FDN que a forragem pode fornecer, em % do peso vivo. No corte, 1,3% aproxima animais só a
+// pasto do consumo da NASEM: com 65% de FDN, o limite fica em 2% do peso.
+const CAPACIDADE_FDN = { Leite: 1.1, Corte: 1.3, Outros: 1.3 };
+export const capacidadeFdnPadrao = (tipo) => CAPACIDADE_FDN[CATEGORIAS[tipo].grupo];
 
 export const LEITE_PADRAO_KG = 15;
 const ENERGIA_LEITE = 0.74; // Mcal/kg, leite com cerca de 4% de gordura
@@ -82,11 +88,13 @@ function definirMs({ msPct, pesoUmidoG, pesoSecoG }) {
   return { msPct, origem: "informada" };
 }
 
-function calcularLote(l) {
+// O pasto é o menor valor entre o limite pelo FDN e o consumo total sem o concentrado.
+function calcularLote(l, fdnPct) {
   const categoria = CATEGORIAS[l.tipo];
   if (!categoria) throw new Error("Escolha a categoria dos animais.");
   const pesoKg = l.pesoKg ?? categoria.pesoKg;
-  const pastoPct = l.pastoPct ?? categoria.pastoPct;
+  const concentradoKg = l.concentradoKg ?? 0;
+  const capacidadeFdnPct = l.capacidadeFdnPct ?? capacidadeFdnPadrao(l.tipo);
   const nome = categoria.nome.toLowerCase();
   if (!positivo(l.animais)) throw new Error(`Informe o número de animais de ${nome}.`);
   if (!positivo(pesoKg)) throw new Error(`Informe o peso de ${nome}.`);
@@ -94,8 +102,13 @@ function calcularLote(l) {
   if (leiteKg !== null && !(Number.isFinite(leiteKg) && leiteKg >= 0)) throw new Error("Informe o leite por vaca.");
   const consumoPct = l.consumoPct ?? consumoReferenciaPct(l.tipo, pesoKg, leiteKg);
   if (!positivo(consumoPct)) throw new Error(`Informe o consumo de ${nome}.`);
-  if (!percentual(pastoPct)) throw new Error(`Informe de 1 a 100% da dieta vinda do pasto em ${nome}.`);
-  const consumoAnimalKg = pesoKg * (consumoPct / 100) * (pastoPct / 100);
+  if (!positivo(capacidadeFdnPct)) throw new Error(`Informe a capacidade de FDN de ${nome}.`);
+  if (!Number.isFinite(concentradoKg) || concentradoKg < 0) throw new Error(`Informe o concentrado de ${nome}.`);
+  const consumoTotalKg = pesoKg * (consumoPct / 100);
+  const semConcentradoKg = consumoTotalKg - concentradoKg;
+  if (semConcentradoKg <= 0) throw new Error(`O concentrado de ${nome} supera o consumo total.`);
+  const limiteFdnKg = (pesoKg * (capacidadeFdnPct / 100)) / (fdnPct / 100);
+  const consumoAnimalKg = Math.min(limiteFdnKg, semConcentradoKg);
   return {
     tipo: l.tipo,
     nome: categoria.nome,
@@ -103,20 +116,26 @@ function calcularLote(l) {
     pesoKg,
     leiteKg,
     consumoPct,
-    pastoPct,
+    concentradoKg,
+    capacidadeFdnPct,
+    consumoTotalKg,
+    semConcentradoKg,
+    limiteFdnKg,
+    limitadoPeloFdn: limiteFdnKg <= semConcentradoKg,
     consumoAnimalKg,
     consumoDiaKg: consumoAnimalKg * l.animais,
     ua: (l.animais * pesoKg) / KG_UA,
   };
 }
 
-// amostrasKg: peso verde de cada quadrado de 1 m². lotes: [{ tipo, animais, pesoKg, leiteKg, consumoPct, pastoPct }].
+// amostrasKg: peso verde de cada quadrado de 1 m². lotes: [{ tipo, animais, pesoKg, leiteKg, consumoPct, concentradoKg, capacidadeFdnPct }].
 export function calcularCapacidade({
   areaHa,
   amostrasKg,
   msPct = null,
   pesoUmidoG = null,
   pesoSecoG = null,
+  fdnPct = null,
   corte = "solo",
   aproveitamentoPct = null,
   descansoDias = null,
@@ -127,6 +146,8 @@ export function calcularCapacidade({
   if (!CORTES[corte]) throw new Error("Escolha como a forragem foi cortada.");
   const amostras = resumirAmostras(amostrasKg);
   const ms = definirMs({ msPct, pesoUmidoG, pesoSecoG });
+  const fdn = fdnPct ?? FDN_PADRAO;
+  if (!percentual(fdn)) throw new Error("Informe o FDN do pasto de 1 a 100%.");
   const aproveitamento = aproveitamentoPct ?? CORTES[corte].aproveitamentoPct;
   const descanso = descansoDias ?? DESCANSO_PADRAO;
   const ocupacaoPlanejada = ocupacaoDias ?? OCUPACAO_PADRAO;
@@ -139,7 +160,7 @@ export function calcularCapacidade({
   const utilKgHa = msKgHa * (aproveitamento / 100);
   const utilPiqueteKg = utilKgHa * areaHa;
 
-  const calculados = lotes.map(calcularLote);
+  const calculados = lotes.map((l) => calcularLote(l, fdn));
   const consumoDiaKg = calculados.reduce((s, l) => s + l.consumoDiaKg, 0);
   const diasOcupacao = calculados.length ? utilPiqueteKg / consumoDiaKg : null;
   const ocupacaoBase = diasOcupacao ?? ocupacaoPlanejada;
@@ -151,6 +172,8 @@ export function calcularCapacidade({
     amostras,
     msPct: ms.msPct,
     msOrigem: ms.origem,
+    fdnPct: fdn,
+    fdnEstimado: fdnPct === null || fdnPct === undefined,
     corte,
     aproveitamentoPct: aproveitamento,
     descansoDias: descanso,

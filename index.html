@@ -416,6 +416,8 @@
               <input name="msPct" type="number" inputmode="decimal" min="0" max="100" step="0.1"></label>
             <label class="campo"><span>Aproveitamento (%)</span>
               <input name="aproveitamentoPct" type="number" inputmode="decimal" min="0" max="100" step="1"></label>
+            <label class="campo"><span>FDN do pasto (%)</span>
+              <input name="fdnPct" type="number" inputmode="decimal" min="0" max="100" step="0.1"></label>
           </div>
           <details id="blocoMicroondas" class="pesos">
             <summary>Calcular a matéria seca no micro-ondas</summary>
@@ -471,10 +473,12 @@
               <input data-campo="pesoKg" type="number" inputmode="numeric" step="1"></label>
             <label class="campo" hidden><span>Leite (kg/vaca/dia)</span>
               <input data-campo="leiteKg" type="number" inputmode="decimal" min="0" step="0.5"></label>
-            <label class="campo"><span>Consumo (% do peso)</span>
+            <label class="campo"><span>Concentrado (kg MS/dia)</span>
+              <input data-campo="concentradoKg" type="number" inputmode="decimal" min="0" step="0.1" placeholder="0"></label>
+            <label class="campo"><span>Consumo total (% do peso)</span>
               <input data-campo="consumoPct" type="number" inputmode="decimal" step="0.1"></label>
-            <label class="campo"><span>Dieta vinda do pasto (%)</span>
-              <input data-campo="pastoPct" type="number" inputmode="numeric" min="0" max="100" step="1"></label>
+            <label class="campo"><span>Capacidade de FDN (% do peso)</span>
+              <input data-campo="capacidadeFdnPct" type="number" inputmode="decimal" step="0.01"></label>
           </div>
         </div>
       </template>
