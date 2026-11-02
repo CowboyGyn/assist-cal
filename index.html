@@ -239,6 +239,10 @@
             <strong>Volumosos do cocho</strong>
             <span>Participação vazia divide igualmente o que falta para 100%.</span>
           </div>
+          <div class="importar um">
+            <button type="button" id="btnImportarSilo" class="secundario">Trazer Estoque de silagem</button>
+          </div>
+          <p id="notaImportarSilo" class="nota" hidden></p>
           <div id="listaVolumosos" class="lista-itens"></div>
           <button type="button" id="btnAddVolumoso" class="link">+ Adicionar volumoso</button>
         </div>
@@ -295,6 +299,114 @@
                 <input data-campo="custoT" type="number" inputmode="decimal" step="1"></label>
             </div>
           </details>
+        </div>
+      </template>
+    </section>
+
+    <!-- Estoque de silagem -->
+    <section id="tela-estoque-silagem" class="tela" hidden>
+      <form id="formSilagem" novalidate>
+        <div class="cartao">
+          <label class="campo">
+            <span>Propriedade</span>
+            <input name="fazenda" type="text" autocomplete="off" placeholder="Nome da fazenda">
+          </label>
+          <div class="grade">
+            <label class="campo"><span>Silo</span>
+              <input name="silo" type="text" autocomplete="off" placeholder="Nome ou número"></label>
+            <label class="campo"><span>Silagem</span>
+              <select name="silagem"></select></label>
+          </div>
+        </div>
+
+        <div class="cartao">
+          <div class="cartao-titulo">
+            <strong>Estoque</strong>
+            <span>Meça só a parte do silo que ainda não foi usada.</span>
+          </div>
+          <fieldset class="segmentado">
+            <legend>Como informar</legend>
+            <label><input type="radio" name="modoEstoque" value="medidas" checked><span>Medidas do silo</span></label>
+            <label><input type="radio" name="modoEstoque" value="toneladas"><span>Toneladas</span></label>
+          </fieldset>
+          <div id="blocoMedidas" class="grade">
+            <label class="campo"><span>Comprimento que falta (m)</span>
+              <input name="comprimentoM" type="number" inputmode="decimal" min="0" step="0.1"></label>
+            <label class="campo"><span>Altura da silagem (m)</span>
+              <input name="alturaM" type="number" inputmode="decimal" min="0" step="0.1"></label>
+            <label class="campo"><span>Largura no topo (m)</span>
+              <input name="larguraTopoM" type="number" inputmode="decimal" min="0" step="0.1"></label>
+            <label class="campo"><span>Largura na base (m)</span>
+              <input name="larguraBaseM" type="number" inputmode="decimal" min="0" step="0.1" placeholder="Igual ao topo"></label>
+          </div>
+          <div id="blocoToneladas" class="grade" hidden>
+            <label class="campo"><span>Silagem no estoque (t)</span>
+              <input name="estoqueT" type="number" inputmode="decimal" min="0" step="0.1"></label>
+          </div>
+          <details class="pesos">
+            <summary>Ajustar índices</summary>
+            <div class="grade">
+              <label class="campo" id="campoDensidade"><span>Densidade (kg/m³)</span>
+                <input name="densidade" type="number" inputmode="numeric" min="0" step="10"></label>
+              <label class="campo"><span>Matéria seca (%)</span>
+                <input name="msPct" type="number" inputmode="decimal" min="0" max="100" step="0.1"></label>
+              <label class="campo"><span>Perdas até o cocho (%)</span>
+                <input name="perdasPct" type="number" inputmode="decimal" min="0" max="99" step="1"></label>
+            </div>
+          </details>
+        </div>
+
+        <div class="cartao">
+          <div class="cartao-titulo">
+            <strong>Consumo</strong>
+            <span>Silagem como sai do silo (matéria natural).</span>
+          </div>
+          <fieldset class="segmentado">
+            <legend>Como informar</legend>
+            <label><input type="radio" name="modoConsumo" value="total" checked><span>Total por dia</span></label>
+            <label><input type="radio" name="modoConsumo" value="animais"><span>Pelos animais</span></label>
+          </fieldset>
+          <div id="blocoConsumoTotal">
+            <label class="campo"><span>Silagem fornecida (kg/dia)</span>
+              <input name="consumoKgDia" type="number" inputmode="decimal" min="0" step="1"></label>
+          </div>
+          <div id="blocoConsumoAnimais" hidden>
+            <p class="nota">Silagem por animal vazia usa a referência, como se todo o volumoso da dieta fosse silagem.</p>
+            <div id="listaLotesSilagem" class="lista-itens"></div>
+            <button type="button" id="btnAddLoteSilagem" class="link">+ Adicionar categoria</button>
+          </div>
+        </div>
+
+        <div class="cartao">
+          <label class="campo"><span>Dias que a silagem precisa durar (opcional)</span>
+            <input name="diasNecessarios" type="number" inputmode="numeric" min="0" step="1"></label>
+          <p class="nota">Por exemplo, os dias até as chuvas. Mostra se sobra ou falta silagem.</p>
+        </div>
+
+        <p id="erroSilagem" class="erro" role="alert" hidden></p>
+
+        <div class="acoes">
+          <button type="submit" class="primario">Calcular</button>
+          <button type="button" id="btnLimparSilagem" class="secundario">Limpar</button>
+        </div>
+      </form>
+
+      <div id="resultadoSilagem" class="resultado" hidden></div>
+
+      <template id="modeloLoteSilagem">
+        <div class="item">
+          <div class="item-topo">
+            <select data-campo="tipo" aria-label="Categoria"></select>
+            <button type="button" class="remover" aria-label="Remover categoria">&#10005;</button>
+          </div>
+          <div class="grade grade-3">
+            <label class="campo"><span>Animais</span>
+              <input data-campo="animais" type="number" inputmode="numeric" min="1" step="1"></label>
+            <label class="campo"><span>Peso (kg)</span>
+              <input data-campo="pesoKg" type="number" inputmode="numeric" step="1"></label>
+            <label class="campo"><span>Silagem (kg/animal/dia)</span>
+              <input data-campo="kgAnimal" type="number" inputmode="decimal" step="0.5"></label>
+          </div>
         </div>
       </template>
     </section>
@@ -647,6 +759,17 @@
             <span class="modulo-tag">Leite e corte</span>
             <strong>Volumoso para a seca</strong>
             <span class="modulo-desc">Silagem, cana, feno: quanto produzir, área, silo e custo.</span>
+          </span>
+          <span class="modulo-seta" aria-hidden="true">&#8250;</span>
+        </a>
+        <a class="modulo forragem" href="#/estoque-silagem">
+          <span class="modulo-icone" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M2 19h20"/><path d="M4 19l2.5-8h11l2.5 8"/><path d="M9 15h6"/><path d="M12 11V5M9.500 7.500L12 5l2.500 2.500"/></svg>
+          </span>
+          <span class="modulo-corpo">
+            <span class="modulo-tag">Leite e corte</span>
+            <strong>Estoque de silagem</strong>
+            <span class="modulo-desc">Quanto tem no silo e por quantos dias dura.</span>
           </span>
           <span class="modulo-seta" aria-hidden="true">&#8250;</span>
         </a>

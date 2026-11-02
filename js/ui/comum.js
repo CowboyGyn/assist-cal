@@ -101,6 +101,26 @@ export function lerUltimoRebanho(origem) {
   }
 }
 
+// Último resultado do Estoque de silagem, para o Volumoso para a seca aproveitar.
+const CHAVE_ULTIMO_SILO = "ateg-cal:ultimo-estoque-silagem";
+
+export function guardarUltimoSilo(dados) {
+  try {
+    localStorage.setItem(CHAVE_ULTIMO_SILO, JSON.stringify({ ...dados, data: dataHoje() }));
+  } catch {
+    // Sem armazenamento: o botão de trazer o estoque fica indisponível.
+  }
+}
+
+export function lerUltimoSilo() {
+  try {
+    const dados = JSON.parse(localStorage.getItem(CHAVE_ULTIMO_SILO));
+    return dados && typeof dados.silagem === "string" && dados.estoqueT > 0 ? dados : null;
+  } catch {
+    return null;
+  }
+}
+
 export function esquecerFormulario(chave) {
   try {
     localStorage.removeItem(chave);

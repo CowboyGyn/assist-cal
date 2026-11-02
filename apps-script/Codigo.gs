@@ -36,9 +36,10 @@
  *   1.13.0 — 31/10/2026 — aceite e contagem de uso exigem comprovante de sessão, emitido
  *                        no login: só o celular não basta para gravar em nome de alguém.
  *   1.14.0 — 31/10/2026 — contagem de uso do módulo "Capacidade de suporte".
+ *   1.15.0 — 02/11/2026 — contagem de uso do módulo "Estoque de silagem".
  */
 
-const VERSAO = "1.14.0";
+const VERSAO = "1.15.0";
 const PLANILHA_ID = "1SFTDBS8Jiz3yPBbbdkgb8MkWZCbKU9Ed8wjDxNR7pAA";
 const ABA = ""; // vazio = primeira aba
 const MAX_TENTATIVAS = 5;
@@ -83,6 +84,7 @@ const MODULOS_USO = {
   "volumoso-seca": "Volumoso para a seca",
   agio: "Ágio de animais",
   "capacidade-suporte": "Capacidade de suporte",
+  "estoque-silagem": "Estoque de silagem",
   convite: "Convite",
 };
 const ACOES_USO = { abrir: "Abriu", calcular: "Calculou", pdf: "Exportou PDF", enviar: "Enviou" };

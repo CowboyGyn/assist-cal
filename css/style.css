@@ -379,6 +379,7 @@ input[name="vacas"] { font-size: 1.25rem; font-weight: 600; }
 .importar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
 .importar button { min-height: 44px; font-size: 0.82rem; padding: 6px 8px; }
 .importar button:disabled { opacity: 0.45; }
+.importar.um { grid-template-columns: 1fr; }
 .lista-itens { display: grid; gap: 10px; }
 .item { display: grid; gap: 10px; padding: 12px; border: 1px solid var(--borda); border-radius: 12px; }
 .item-topo { display: flex; gap: 8px; align-items: center; }

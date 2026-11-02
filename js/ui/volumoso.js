@@ -23,6 +23,7 @@ import {
   avisarUso,
   graficoBarras,
   lerUltimoRebanho,
+  lerUltimoSilo,
 } from "./comum.js";
 
 const CHAVE_STORAGE = "ateg-cal:volumoso-seca";
@@ -137,7 +138,29 @@ function atualizarBotoesImportar() {
       ? `Último cálculo${dados.fazenda ? ` (${dados.fazenda})` : ""} em ${dados.data}`
       : `Calcule antes o Rebanho ideal — ${origem}`;
   }
+  const silo = lerUltimoSilo();
+  $("btnImportarSilo").disabled = !silo;
+  $("btnImportarSilo").title = silo
+    ? `Último cálculo${silo.silo ? ` (${silo.silo})` : ""} em ${silo.data}`
+    : "Calcule antes o Estoque de silagem";
 }
+
+// Põe o estoque do silo na silagem do mesmo tipo, criando a linha se ela não existir.
+function importarSilo() {
+  const silo = lerUltimoSilo();
+  if (!silo || !VOLUMOSOS[silo.silagem]) return;
+  const item = [...listaVolumosos.children].find((i) => i.querySelector('[data-campo="tipo"]').value === silo.silagem)
+    ?? novoVolumoso({ tipo: silo.silagem });
+  item.querySelector('[data-campo="estoqueT"]').value = Math.round(silo.estoqueT * 10) / 10;
+  if (silo.msPct) item.querySelector('[data-campo="msPct"]').value = Math.round(silo.msPct * 10) / 10;
+  if (!form.elements.fazenda.value && silo.fazenda) form.elements.fazenda.value = silo.fazenda;
+  const nome = VOLUMOSOS[silo.silagem].nome.toLowerCase();
+  $("notaImportarSilo").textContent = `Trazido${silo.silo ? ` (${silo.silo})` : ""}: ${fmt(silo.estoqueT, 1)} t de ${nome}, `
+    + `calculado em ${silo.data}. Aqui valem as perdas do Volumoso. Se tiver mais de um silo, some as toneladas.`;
+  $("notaImportarSilo").hidden = false;
+}
+
+$("btnImportarSilo").addEventListener("click", importarSilo);
 
 function importar(origem) {
   const dados = lerUltimoRebanho(origem);

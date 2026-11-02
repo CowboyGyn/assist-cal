@@ -18,6 +18,7 @@ import "./ui/corte.js";
 import "./ui/volumoso.js";
 import "./ui/agio.js";
 import "./ui/capacidade.js";
+import "./ui/silagem.js";
 import "./ui/convite.js";
 
 const ROTAS = {
@@ -29,6 +30,7 @@ const ROTAS = {
   "volumoso-seca": { tela: "tela-volumoso-seca", titulo: "Volumoso para a seca" },
   agio: { tela: "tela-agio", titulo: "Ágio de animais" },
   "capacidade-suporte": { tela: "tela-capacidade-suporte", titulo: "Capacidade de suporte" },
+  "estoque-silagem": { tela: "tela-estoque-silagem", titulo: "Estoque de silagem" },
   termos: { tela: "tela-termos", titulo: "Termos e privacidade" },
 };
 
