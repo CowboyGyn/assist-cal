@@ -159,8 +159,14 @@ function mostrarUsuario() {
 
 function mostrarRanking(r) {
   const selo = $("seloRanking");
-  selo.hidden = !sessaoAtual() || !r || !r.total;
+  selo.hidden = !sessaoAtual() || !r || (!r.total && !r.semSessao);
   if (selo.hidden) return;
+  if (r.semSessao) {
+    $("rankingPosicao").textContent = "Veja sua posição no ranking";
+    $("rankingTotal").textContent = "";
+    $("rankingDetalhe").textContent = "Toque em Sair e entre de novo com seu celular e senha";
+    return;
+  }
   const periodo = `últimos ${r.dias || 30} dias`;
   if (r.posicao > 0) {
     $("rankingPosicao").textContent = `${r.posicao}º lugar`;

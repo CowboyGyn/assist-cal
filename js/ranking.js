@@ -9,12 +9,14 @@ const TEMPO_LIMITE_MS = 15000;
 
 let buscando = false;
 
-// Última posição conhecida deste celular (outro login no aparelho não herda a posição).
+// Última posição conhecida deste login: entrar de novo (outro comprovante) pergunta na hora.
 export function rankingGuardado() {
+  const s = sessaoAtual();
+  // Login de antes do comprovante (31/10/2026): o script não responde, então o selo pede para entrar de novo.
+  if (s && !s.comprovante) return { semSessao: true };
   try {
     const r = JSON.parse(localStorage.getItem(CHAVE));
-    const s = sessaoAtual();
-    if (r && s && r.celular === s.celular) return r;
+    if (r && s && r.celular === s.celular && r.sessao === s.comprovante) return r;
   } catch {
     // sem armazenamento ou dado inválido
   }
@@ -36,9 +38,13 @@ export async function atualizarRanking(aoAtualizar) {
       signal: AbortSignal.timeout?.(TEMPO_LIMITE_MS),
     });
     const r = await resp.json();
-    // Script antigo ("Ação desconhecida") ou sessão recusada: o selo só não aparece.
-    if (!r.ok) return;
-    const novo = { celular: s.celular, posicao: r.posicao, total: r.total, pontos: r.pontos, dias: r.dias, em: Date.now() };
+    const base = { celular: s.celular, sessao: s.comprovante, em: Date.now() };
+    let novo;
+    if (r.ok) novo = { ...base, posicao: r.posicao, total: r.total, pontos: r.pontos, dias: r.dias };
+    // Comprovante recusado (vencido ou de outra chave): o selo pede para entrar de novo.
+    else if (r.erro === "Sessão inválida.") novo = { ...base, semSessao: true };
+    // Script antigo ou erro passageiro: o selo só não aparece e tenta de novo depois.
+    else return;
     localStorage.setItem(CHAVE, JSON.stringify(novo));
     aoAtualizar?.(novo);
   } catch {
