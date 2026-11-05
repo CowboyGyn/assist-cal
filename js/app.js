@@ -12,6 +12,7 @@ import {
   sair,
 } from "./ui/login.js";
 import { registrarUso, enviarUso, versaoApp } from "./uso.js";
+import { rankingGuardado, atualizarRanking } from "./ranking.js";
 import "./ui/rebanho.js";
 import "./ui/previsao.js";
 import "./ui/corte.js";
@@ -150,6 +151,26 @@ function mostrarUsuario() {
   const sessao = sessaoAtual();
   $("capaUsuario").hidden = !sessao;
   if (sessao) $("nomeUsuario").textContent = sessao.nome.split(" ")[0] || sessao.celular;
+  mostrarRanking(rankingGuardado());
+  atualizarRanking(mostrarRanking);
+}
+
+// ---------- Ranking ----------
+
+function mostrarRanking(r) {
+  const selo = $("seloRanking");
+  selo.hidden = !sessaoAtual() || !r || !r.total;
+  if (selo.hidden) return;
+  const periodo = `últimos ${r.dias || 30} dias`;
+  if (r.posicao > 0) {
+    $("rankingPosicao").textContent = `${r.posicao}º lugar`;
+    $("rankingTotal").textContent = `de ${r.total} usuários`;
+    $("rankingDetalhe").textContent = `${r.pontos} ${r.pontos === 1 ? "ponto" : "pontos"} nos ${periodo}`;
+  } else {
+    $("rankingPosicao").textContent = "Entre no ranking";
+    $("rankingTotal").textContent = "";
+    $("rankingDetalhe").textContent = `Faça um cálculo hoje e dispute com ${r.total} usuários`;
+  }
 }
 
 iniciarLogin(navegar);

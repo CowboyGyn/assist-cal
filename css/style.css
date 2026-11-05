@@ -209,6 +209,24 @@ button.primario:disabled { opacity: 0.7; cursor: progress; }
 .fechar-termos { width: 100%; }
 .capa-usuario { margin: 10px 0 0; font-size: 0.88rem; }
 .capa-usuario .link-claro { padding: 0 2px; color: #b9f0c9; font-weight: 600; }
+.selo-ranking {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgb(242 192 99 / 0.28), rgb(242 192 99 / 0.12));
+  border: 1px solid rgb(242 192 99 / 0.55);
+  color: #fff;
+  font-size: 0.88rem;
+  line-height: 1.25;
+  text-align: left;
+}
+.selo-ranking[hidden] { display: none; }
+.ranking-trofeu { font-size: 1.6rem; line-height: 1; }
+.selo-ranking b { font-size: 1.05rem; color: #ffd98a; }
+.selo-ranking small { display: block; opacity: 0.85; font-size: 0.76rem; }
 
 /* ---------- Tela inicial ---------- */
 

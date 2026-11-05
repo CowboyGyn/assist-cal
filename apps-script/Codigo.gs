@@ -40,9 +40,12 @@
  *   1.16.0 — 05/11/2026 — nome do app trocado de "ATeG Cal" para "Assist Cal" nos e-mails e mensagens.
  *   1.17.0 — 05/11/2026 — "Resumo de uso" mostra quantos usuários já usam o endereço novo
  *                        (/assist-cal/), pela coluna "Versão do app" da aba Uso.
+ *   1.18.0 — 05/11/2026 — ranking de usuários: ação "ranking" devolve só a posição de quem
+ *                        pergunta (pontos dos últimos 30 dias, calculados da aba Uso), entre
+ *                        todos os cadastros ativos.
  */
 
-const VERSAO = "1.17.0";
+const VERSAO = "1.18.0";
 const PLANILHA_ID = "1SFTDBS8Jiz3yPBbbdkgb8MkWZCbKU9Ed8wjDxNR7pAA";
 const ABA = ""; // vazio = primeira aba
 const MAX_TENTATIVAS = 5;
@@ -94,6 +97,13 @@ const ACOES_USO = { abrir: "Abriu", calcular: "Calculou", pdf: "Exportou PDF", e
 const MAX_EVENTOS_ENVIO = 100;
 const MAX_ENVIOS_HORA = 60; // por celular
 
+// Ranking: pontos dos últimos DIAS_RANKING dias. Cada dia com uso vale 1 ponto, além das ações.
+// Abrir um módulo não pontua (seria fácil inflar); calcular, gerar PDF e convidar, sim.
+const DIAS_RANKING = 30;
+const PONTOS_DIA_USO = 1;
+const PONTOS_ACAO = { Calculou: 1, "Exportou PDF": 2, Enviou: 3 };
+const CACHE_RANKING_SEGUNDOS = 30 * 60;
+
 function doGet() {
   return responder({ ok: true, servico: "Assist Cal login" });
 }
@@ -114,6 +124,7 @@ function doPost(e) {
     if (dados.acao === "trocarSenha") return responder(trocarSenha(dados));
     if (dados.acao === "uso") return responder(registrarUso(dados));
     if (dados.acao === "aceite") return responder(registrarAceite(dados));
+    if (dados.acao === "ranking") return responder(posicaoRanking(dados));
   } catch (err) {
     console.error("Erro em " + dados.acao + ": " + (err.stack || err));
     return responder({ ok: false, erro: "Erro no servidor: " + err.message });
@@ -543,6 +554,90 @@ function registrarUso(d) {
   return { ok: true, gravados: linhas.length };
 }
 
+// ---------- Ranking ----------
+
+// Devolve só a posição de quem pergunta: nomes e pontos dos outros nunca saem da planilha.
+function posicaoRanking(d) {
+  const chave = chaveCelular(d.celular);
+  if (!chave || !comprovanteValido(chave, d.comprovante)) return { ok: false, erro: "Sessão inválida." };
+  const pontos = pontosRanking();
+  return Object.assign({ ok: true, dias: DIAS_RANKING }, posicaoDe(pontos, chave, totalCadastros()));
+}
+
+// Cadastros ativos com celular válido (cada celular conta uma vez). Guardado por 30 minutos.
+function totalCadastros() {
+  const cache = CacheService.getScriptCache();
+  const guardado = cache.get("cadastros");
+  if (guardado) return Number(guardado);
+  const valores = abrirAba().getDataRange().getDisplayValues();
+  const total = contarCadastros(valores);
+  cache.put("cadastros", String(total), CACHE_RANKING_SEGUNDOS);
+  return total;
+}
+
+function contarCadastros(valores) {
+  if (valores.length < 2) return 0;
+  const col = localizarColunas(valores[0]);
+  if (col.celular < 0) return 0;
+  const vistos = {};
+  for (let i = 1; i < valores.length; i++) {
+    const chave = chaveCelular(valores[i][col.celular]);
+    if (!chave) continue;
+    if (col.ativo >= 0 && /^(nao|n|inativo|bloqueado|false|0)$/.test(normalizar(valores[i][col.ativo]))) continue;
+    vistos[chave] = true;
+  }
+  return Object.keys(vistos).length;
+}
+
+// O cálculo lê a aba Uso inteira; o resultado fica guardado por 30 minutos para todos.
+function pontosRanking() {
+  const cache = CacheService.getScriptCache();
+  const guardado = cache.get("ranking");
+  if (guardado) return JSON.parse(guardado);
+
+  const aba = SpreadsheetApp.openById(PLANILHA_ID).getSheetByName(ABA_USO);
+  const linhas = aba && aba.getLastRow() > 1 ? aba.getRange(2, 1, aba.getLastRow() - 1, 5).getValues() : [];
+  const pontos = calcularPontos(linhas, Date.now());
+  try {
+    cache.put("ranking", JSON.stringify(pontos), CACHE_RANKING_SEGUNDOS);
+  } catch (err) {
+    // acima do limite do cache (100 KB): calcula de novo na próxima vez
+  }
+  return pontos;
+}
+
+// linhas: [Data/hora, Nome, Celular, Módulo, Ação] da aba Uso. Devolve { chaveCelular: pontos }.
+function calcularPontos(linhas, agora) {
+  const inicio = agora - DIAS_RANKING * 86400000;
+  const pontos = {};
+  const dias = {};
+  for (const linha of linhas) {
+    const quando = linha[0] instanceof Date ? linha[0].getTime() : new Date(linha[0]).getTime();
+    if (isNaN(quando) || quando < inicio || quando > agora + 3600000) continue;
+    const chave = chaveCelular(linha[2]);
+    if (!chave) continue;
+    const dia = chave + "|" + Utilities.formatDate(new Date(quando), "America/Sao_Paulo", "yyyy-MM-dd");
+    let p = PONTOS_ACAO[linha[4]] || 0;
+    if (!dias[dia]) {
+      dias[dia] = true;
+      p += PONTOS_DIA_USO;
+    }
+    pontos[chave] = (pontos[chave] || 0) + p;
+  }
+  return pontos;
+}
+
+// Empatados dividem a posição (1º, 2º, 2º, 4º). Sem pontos no período = ainda sem posição.
+// total: todos os cadastros ativos (nunca menos que os que pontuaram).
+function posicaoDe(pontos, chave, cadastros) {
+  const total = Math.max(Number(cadastros) || 0, Object.keys(pontos).length);
+  const meus = pontos[chave] || 0;
+  if (!meus) return { posicao: 0, total: total, pontos: 0 };
+  let acima = 0;
+  for (const k in pontos) if (pontos[k] > meus) acima++;
+  return { posicao: acima + 1, total: total, pontos: meus };
+}
+
 // Abas de uso ficam no fim da planilha: a primeira aba continua sendo a de usuários.
 function abaUso() {
   const planilha = SpreadsheetApp.openById(PLANILHA_ID);
@@ -730,6 +825,10 @@ function testarLeitura() {
   Logger.log("Resumo de uso atualizado — idioma da planilha: " + aba.getParent().getSpreadsheetLocale());
   Logger.log("Fórmulas na aba de usuários: " + listarFormulas(aba));
   Logger.log("Fórmulas na aba Uso: " + listarFormulas(abaUso()));
+  CacheService.getScriptCache().removeAll(["cadastros", "ranking"]);
+  const pontos = pontosRanking();
+  Logger.log("Ranking: " + totalCadastros() + " cadastros ativos; " + Object.keys(pontos).length +
+    " com pontos nos últimos " + DIAS_RANKING + " dias.");
 }
 
 // Essas abas só guardam dados: fórmula nelas pode ser sinal de cadastro malicioso.
