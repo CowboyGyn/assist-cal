@@ -6,7 +6,7 @@ import { $, avisarUso } from "./comum.js";
 
 const CARTOES = ["instalar-android.png", "instalar-iphone.png"];
 
-const TEXTO = `Olá! Conheça o ATeG Cal, calculadora zootécnica para leite e corte que funciona no celular, até sem internet.
+const TEXTO = `Olá! Conheça o Assist Cal, calculadora zootécnica para leite e corte que funciona no celular, até sem internet.
 
 Acesse: ${APP_URL}`;
 

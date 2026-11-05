@@ -1,7 +1,7 @@
 // Ponto de entrada: rotas por hash, indicador de conexão e service worker.
 // Cada módulo cuida do seu formulário e resultado.
 import { $ } from "./ui/comum.js";
-import { TERMOS_VERSAO } from "./config.js";
+import { TERMOS_VERSAO, APP_URL, ENDERECO_ANTIGO } from "./config.js";
 import {
   iniciarLogin,
   precisaLogin,
@@ -22,8 +22,8 @@ import "./ui/silagem.js";
 import "./ui/convite.js";
 
 const ROTAS = {
-  "": { tela: "tela-inicio", titulo: "ATeG Cal" },
-  login: { tela: "tela-login", titulo: "ATeG Cal" },
+  "": { tela: "tela-inicio", titulo: "Assist Cal" },
+  login: { tela: "tela-login", titulo: "Assist Cal" },
   "rebanho-leite": { tela: "tela-rebanho-leite", titulo: "Rebanho ideal — leite" },
   "previsao-leite": { tela: "tela-previsao-leite", titulo: "Previsão de leite" },
   "rebanho-corte": { tela: "tela-rebanho-corte", titulo: "Rebanho ideal — corte" },
@@ -64,8 +64,9 @@ function navegar() {
     tela.hidden = tela.id !== destino.tela;
   }
   $("tituloTela").textContent = destino.titulo;
-  document.title = destino.titulo === "ATeG Cal" ? "ATeG Cal" : `${destino.titulo} · ATeG Cal`;
+  document.title = destino.titulo === "Assist Cal" ? "Assist Cal" : `${destino.titulo} · Assist Cal`;
   $("btnVoltar").hidden = ["tela-inicio", "tela-login", "tela-termos"].includes(destino.tela);
+  mostrarMudanca(destino.tela);
   mostrarUsuario();
   window.scrollTo(0, 0);
 }
@@ -105,6 +106,43 @@ $("btnRecusar").addEventListener("click", () => {
   location.hash = "#/";
   navegar();
 });
+
+// ---------- Mudança de endereço (/ateg-cal/ → /assist-cal/) ----------
+
+// O app novo instalado deixa esta marca no aparelho; o antigo a lê (mesmo domínio, no Android).
+const CHAVE_INSTALOU_NOVO = "ateg-cal:instalou-endereco-novo";
+
+function marcarInstalouNovo() {
+  try {
+    localStorage.setItem(CHAVE_INSTALOU_NOVO, new Date().toISOString());
+  } catch {
+    // sem armazenamento: o aviso no endereço antigo continua pedindo a instalação
+  }
+}
+
+function instalouNovo() {
+  try {
+    return !!localStorage.getItem(CHAVE_INSTALOU_NOVO);
+  } catch {
+    return false;
+  }
+}
+
+if (!ENDERECO_ANTIGO) {
+  if (matchMedia("(display-mode: standalone)").matches || navigator.standalone === true) marcarInstalouNovo();
+  window.addEventListener("appinstalled", marcarInstalouNovo);
+}
+
+$("btnNovoEndereco").href = APP_URL;
+
+// Só no endereço antigo, na tela inicial e no login (quem chega pelo link antigo também vê).
+function mostrarMudanca(tela) {
+  $("avisoMudanca").hidden = !ENDERECO_ANTIGO || !["tela-inicio", "tela-login"].includes(tela);
+  const feito = instalouNovo();
+  $("mudancaPendente").hidden = feito;
+  $("mudancaFeita").hidden = !feito;
+  $("btnNovoEndereco").textContent = feito ? "Abrir o app novo" : "Abrir o endereço novo";
+}
 
 // ---------- Usuário ----------
 
@@ -149,7 +187,7 @@ navegar();
 async function mostrarVersao() {
   const versao = await versaoApp();
   if (!versao) return;
-  $("versaoApp").textContent = `Versão ${versao.replace("ateg-cal-v", "")}`;
+  $("versaoApp").textContent = `Versão ${versao.replace(/^.*-v/, "")}`;
   $("versaoApp").hidden = false;
 }
 mostrarVersao();

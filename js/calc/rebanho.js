@@ -94,7 +94,7 @@ function montarResultado(modo, categorias, extras) {
   };
 }
 
-// Modo padrão ATeG: proporções fixas do rebanho total (55/9/16/20).
+// Modo padrão Assist: proporções fixas do rebanho total (55/9/16/20).
 export function calcularPadraoAteg(vacasLactacao, pesos = PESOS_PADRAO) {
   validarVacas(vacasLactacao);
   validarPesos(pesos);

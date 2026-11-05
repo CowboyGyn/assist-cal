@@ -153,7 +153,7 @@ function renderizarPremissas(r, pesos) {
   return premissasRelatorio(linhas);
 }
 
-// A cor acompanha a categoria (não a posição); "novilhas" do padrão ATeG = 12–24 meses.
+// A cor acompanha a categoria (não a posição); "novilhas" do padrão Assist = 12–24 meses.
 const corCategoria = (id) => `var(--cat-${id === "novilhas" ? "novilhas1" : id})`;
 
 function renderizarComposicao(r) {
@@ -190,7 +190,7 @@ function renderizarResultado(r, fazenda) {
 
   const subtitulo = [
     fazenda ? escapar(fazenda) : null,
-    r.modo === "indices" ? "Índices da fazenda" : "Padrão ATeG (55/9/16/20)",
+    r.modo === "indices" ? "Índices da fazenda" : "Padrão Assist (55/9/16/20)",
   ]
     .filter(Boolean)
     .join(" · ");

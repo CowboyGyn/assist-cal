@@ -147,7 +147,7 @@ export function cabecalhoRelatorio(titulo, fazenda) {
         <p class="rel-titulo">Relatório — ${escapar(titulo)}</p>
         <p class="rel-meta">${fazenda ? `Propriedade: <b>${escapar(fazenda)}</b> · ` : ""}Emitido em ${dataHoje()}</p>
       </div>
-      <img src="icons/logo-96.png" alt="ATeG Cal" width="48" height="48">
+      <img src="icons/logo-96.png" alt="Assist Cal" width="48" height="48">
     </header>`;
 }
 
@@ -165,7 +165,7 @@ export function rodapeRelatorio() {
   const c = CONTATOS;
   return `
     <footer class="so-impressao rel-rodape">
-      <p><b>Zootécnica ATeG</b> — Assistência Técnica e Gerencial</p>
+      <p><b>Zootécnica Assist</b> — Assistência Técnica e Gerencial</p>
       <p>
         Celular/WhatsApp: <a href="${c.celularLink}">${c.celular}</a> ·
         E-mail: <a href="mailto:${c.email}">${c.email}</a>
@@ -174,7 +174,7 @@ export function rodapeRelatorio() {
         Instagram: ${c.instagram.map((u) => `<a href="https://instagram.com/${u}">@${u}</a>`).join(" e ")}
       </p>
       <p>Grupo de Gestão no WhatsApp: <a href="${c.grupo}">${c.grupo}</a></p>
-      <p class="rel-aviso">Estimativa calculada pelo ATeG Cal a partir dos dados informados; não substitui o acompanhamento técnico da propriedade.</p>
+      <p class="rel-aviso">Estimativa calculada pelo Assist Cal a partir dos dados informados; não substitui o acompanhamento técnico da propriedade.</p>
     </footer>`;
 }
 

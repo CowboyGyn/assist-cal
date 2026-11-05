@@ -222,7 +222,7 @@ function abrirNovaSenha(pedido) {
 
 function pedirSenhaWhatsApp() {
   const celular = (pedidoSenha ? pedidoSenha.celular : formEsqueci.elements.celular.value).trim();
-  const texto = `Olá! Esqueci minha senha do ATeG Cal.${celular ? ` Meu celular cadastrado é ${celular}.` : ""}`;
+  const texto = `Olá! Esqueci minha senha do Assist Cal.${celular ? ` Meu celular cadastrado é ${celular}.` : ""}`;
   window.open(`https://wa.me/${WHATSAPP_SUPORTE}?text=${encodeURIComponent(texto)}`, "_blank", "noopener");
 }
 

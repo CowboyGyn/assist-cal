@@ -1,4 +1,4 @@
-# Login do ATeG Cal com a planilha do Google
+# Login do Assist Cal com a planilha do Google
 
 O app não lê a planilha diretamente. Um pequeno script (Apps Script) roda na sua conta
 Google, confere celular e senha e responde só "ok + nome" ou "erro". Assim as senhas
@@ -29,14 +29,14 @@ Linha 1 com os cabeçalhos (qualquer ordem):
 2. *Executar como:* **Eu**. *Quem pode acessar:* **Qualquer pessoa**.
 3. Clique em **Implantar** e copie o endereço que termina em `/exec`.
 4. No app, abra `js/config.js` e cole o endereço em `LOGIN_URL`.
-5. Em `sw.js`, aumente a versão (`ateg-cal-vN`) para os celulares receberem a mudança.
+5. Em `sw.js`, aumente o `NUMERO` para os celulares receberem a mudança.
 
 Se alterar o `Codigo.gs` depois: aumente `VERSAO` no topo do arquivo, anote a mudança no
 histórico e publique em **Implantar → Gerenciar implantações → editar → Nova versão**
 (o endereço continua o mesmo).
 
 Para conferir qual versão está no ar, abra o endereço `/exec` no navegador: aparece
-`{"ok":true,"servico":"ATeG Cal login","versao":"1.0.0"}`.
+`{"ok":true,"servico":"Assist Cal login","versao":"1.0.0"}`.
 
 ## Primeiro acesso (cadastro pelo app) — versão 1.1.0
 

@@ -1,6 +1,10 @@
 // Cache dos arquivos do app para uso offline no campo.
-// Ao alterar qualquer arquivo listado, incremente a versão.
-const VERSAO = "ateg-cal-v33";
+// Ao alterar qualquer arquivo listado, incremente o NUMERO.
+const NUMERO = 34;
+// O mesmo arquivo roda nos dois endereços (/ateg-cal/ e /assist-cal/). Os caches são do domínio,
+// divididos pelos dois: cada endereço usa o próprio prefixo e só apaga os próprios caches.
+const PREFIXO = self.location.pathname.startsWith("/ateg-cal/") ? "ateg-cal" : "assist-cal";
+const VERSAO = `${PREFIXO}-v${NUMERO}`;
 const ARQUIVOS = [
   "./",
   "index.html",
@@ -50,7 +54,9 @@ self.addEventListener("activate", (e) => {
   e.waitUntil(
     caches
       .keys()
-      .then((chaves) => Promise.all(chaves.filter((k) => k !== VERSAO).map((k) => caches.delete(k))))
+      .then((chaves) =>
+        Promise.all(chaves.filter((k) => k.startsWith(`${PREFIXO}-v`) && k !== VERSAO).map((k) => caches.delete(k))),
+      )
       .then(() => self.clients.claim()),
   );
 });

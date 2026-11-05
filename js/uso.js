@@ -1,6 +1,6 @@
 // Contagem de uso dos módulos: guarda os eventos no aparelho (funciona offline) e
 // envia em lote para o Apps Script, que grava na aba "Uso" da planilha.
-import { LOGIN_URL } from "./config.js";
+import { LOGIN_URL, PREFIXO_VERSAO } from "./config.js";
 import { sessaoAtual } from "./ui/login.js";
 
 const CHAVE_FILA = "ateg-cal:uso";
@@ -36,10 +36,10 @@ export function registrarUso(modulo, acao) {
   espera = setTimeout(enviarUso, ESPERA_ENVIO_MS);
 }
 
-// A versão em uso é o nome do cache do service worker (ex.: "ateg-cal-v15").
+// A versão em uso é o nome do cache do service worker deste endereço (ex.: "assist-cal-v34").
 export async function versaoApp() {
   try {
-    return (await caches.keys()).find((k) => k.startsWith("ateg-cal-")) ?? "";
+    return (await caches.keys()).find((k) => k.startsWith(`${PREFIXO_VERSAO}-v`)) ?? "";
   } catch {
     return "";
   }
@@ -60,7 +60,8 @@ export async function enviarUso() {
           acao: "uso",
           celular: sessao.celular,
           comprovante: sessao.comprovante,
-          versaoApp: await versaoApp(),
+          // Sem service worker vai só o prefixo: a planilha ainda sabe de qual endereço veio o uso.
+          versaoApp: (await versaoApp()) || PREFIXO_VERSAO,
           eventos: lote,
         }),
       });

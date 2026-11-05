@@ -15,7 +15,7 @@ test("arredondamento mantém a soma do rebanho", () => {
   assert.deepEqual(arredondarMantendoTotal([30, 4.5, 4.5]), [30, 5, 4]);
 });
 
-test("padrão ATeG com 10 vacas não perde animais (bug do app original)", () => {
+test("padrão Assist com 10 vacas não perde animais (bug do app original)", () => {
   const r = calcularPadraoAteg(10);
   perto(r.total, 18.18);
   assert.equal(r.totalInteiro, 18);
@@ -24,7 +24,7 @@ test("padrão ATeG com 10 vacas não perde animais (bug do app original)", () =>
   perto(r.pctLactacaoRebanho, 55);
 });
 
-test("padrão ATeG: proporções 55/9/16/20", () => {
+test("padrão Assist: proporções 55/9/16/20", () => {
   const r = calcularPadraoAteg(55);
   perto(r.total, 100);
   perto(qtd(r, "secas"), 9);
@@ -48,7 +48,7 @@ test("índices: recria só da reposição produz exatamente a reposição necess
   const r = calcularPorIndices(30, INDICES_PADRAO);
   perto(r.reposicao.produzidaAno, r.reposicao.necessariaAno);
   assert.ok(r.reposicao.saldoAno > 0);
-  // Com índices típicos, a estrutura fica próxima dos 55% do padrão ATeG.
+  // Com índices típicos, a estrutura fica próxima dos 55% do padrão Assist.
   assert.ok(r.pctLactacaoRebanho > 50 && r.pctLactacaoRebanho < 60, `${r.pctLactacaoRebanho}`);
 });
 

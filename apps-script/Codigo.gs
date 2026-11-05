@@ -1,5 +1,5 @@
 /**
- * ATeG Cal — login e cadastro pelo celular usando a planilha de usuários.
+ * Assist Cal — login e cadastro pelo celular usando a planilha de usuários.
  *
  * Este script roda na conta Google do dono da planilha. O app envia os dados;
  * o script confere/grava na planilha e responde só { ok, nome } ou { ok: false, erro }.
@@ -37,9 +37,12 @@
  *                        no login: só o celular não basta para gravar em nome de alguém.
  *   1.14.0 — 31/10/2026 — contagem de uso do módulo "Capacidade de suporte".
  *   1.15.0 — 02/11/2026 — contagem de uso do módulo "Estoque de silagem".
+ *   1.16.0 — 05/11/2026 — nome do app trocado de "ATeG Cal" para "Assist Cal" nos e-mails e mensagens.
+ *   1.17.0 — 05/11/2026 — "Resumo de uso" mostra quantos usuários já usam o endereço novo
+ *                        (/assist-cal/), pela coluna "Versão do app" da aba Uso.
  */
 
-const VERSAO = "1.15.0";
+const VERSAO = "1.17.0";
 const PLANILHA_ID = "1SFTDBS8Jiz3yPBbbdkgb8MkWZCbKU9Ed8wjDxNR7pAA";
 const ABA = ""; // vazio = primeira aba
 const MAX_TENTATIVAS = 5;
@@ -92,7 +95,7 @@ const MAX_EVENTOS_ENVIO = 100;
 const MAX_ENVIOS_HORA = 60; // por celular
 
 function doGet() {
-  return responder({ ok: true, servico: "ATeG Cal login" });
+  return responder({ ok: true, servico: "Assist Cal login" });
 }
 
 function doPost(e) {
@@ -170,7 +173,7 @@ function conferirSenha(chave, senha) {
     return { erro: "Celular ou senha incorretos." };
   }
   if (usuario.ativo === false) {
-    return { erro: "Acesso desativado. Fale com a Zootécnica ATeG." };
+    return { erro: "Acesso desativado. Fale com a Zootécnica Assist." };
   }
   cache.remove(chaveCache);
   return { usuario: usuario };
@@ -267,7 +270,7 @@ function enviarCodigo(celular) {
   try {
     MailApp.sendEmail(
       usuario.email,
-      "ATeG Cal — código para criar nova senha",
+      "Assist Cal — código para criar nova senha",
       "Seu código é " + codigo + ".\n\n" +
         "Digite o código no aplicativo para criar uma nova senha. Ele vale por 15 minutos.\n" +
         "Se você não pediu, ignore este e-mail: sua senha continua a mesma.",
@@ -304,7 +307,7 @@ function redefinirSenha(d) {
   }
 
   const usuario = buscarUsuario(chave);
-  if (!usuario || usuario.ativo === false) return { ok: false, erro: "Acesso desativado. Fale com a Zootécnica ATeG." };
+  if (!usuario || usuario.ativo === false) return { ok: false, erro: "Acesso desativado. Fale com a Zootécnica Assist." };
   if (!gravarSenha(usuario, nova)) return { ok: false, erro: "Servidor ocupado. Tente de novo." };
   cache.remove(chaveCodigo);
   cache.remove(chaveErros);
@@ -422,8 +425,8 @@ function avisarCadastro(novo) {
     if (!dono) return;
     MailApp.sendEmail(
       dono,
-      "ATeG Cal — novo cadastro: " + novo.nome,
-      "Novo cadastro pelo Primeiro acesso do ATeG Cal:\n\n" +
+      "Assist Cal — novo cadastro: " + novo.nome,
+      "Novo cadastro pelo Primeiro acesso do Assist Cal:\n\n" +
         "Nome: " + novo.nome + "\n" +
         "Celular: " + novo.celular + "\n" +
         "E-mail: " + novo.email + "\n" +
@@ -563,7 +566,7 @@ function criarResumo(planilha) {
   const r = planilha.getSheetByName(ABA_RESUMO) || planilha.insertSheet(ABA_RESUMO, planilha.getNumSheets());
   // Em planilha em português, os argumentos das fórmulas são separados por ponto e vírgula.
   const s = String(planilha.getSpreadsheetLocale()).startsWith("pt") ? ";" : ",";
-  r.getRange("A1").setValue("Resumo de uso do ATeG Cal").setFontWeight("bold").setFontSize(14);
+  r.getRange("A1").setValue("Resumo de uso do Assist Cal").setFontWeight("bold").setFontSize(14);
 
   r.getRange("A3:A5").setValues([
     ["Usuários diferentes nos últimos 7 dias"],
@@ -573,6 +576,26 @@ function criarResumo(planilha) {
   r.getRange("B3").setFormula("=IFERROR(COUNTUNIQUE(FILTER(Uso!C2:C" + s + " Uso!A2:A >= TODAY() - 7))" + s + " 0)");
   r.getRange("B4").setFormula("=IFERROR(COUNTUNIQUE(FILTER(Uso!C2:C" + s + " Uso!A2:A >= TODAY() - 30))" + s + " 0)");
   r.getRange("B5").setFormula("=COUNTUNIQUE(Uso!C2:C)");
+
+  // Mudança de endereço: a "Versão do app" começa com "assist-cal" no endereço novo e com
+  // "ateg-cal" (ou fica vazia, nas versões até a 33) no antigo.
+  const novo = "LEFT(Uso!F2:F" + s + " 10) = \"assist-cal\"";
+  const antigo = "LEFT(Uso!F2:F" + s + " 10) <> \"assist-cal\"";
+  const ult30 = "Uso!A2:A >= TODAY() - 30";
+  const unicos = (...filtros) =>
+    "=IFERROR(COUNTUNIQUE(FILTER(Uso!C2:C" + s + " " + filtros.join(s + " ") + "))" + s + " 0)";
+  r.getRange("D2").setValue("Mudança para o endereço novo (assist-cal)").setFontWeight("bold");
+  r.getRange("D3:D6").setValues([
+    ["Usaram o endereço novo nos últimos 30 dias"],
+    ["Usaram o endereço antigo nos últimos 30 dias"],
+    ["Já migraram (% dos usuários dos últimos 30 dias)"],
+    ["Usaram o endereço novo desde o início"],
+  ]);
+  r.getRange("E3").setFormula(unicos(ult30, novo));
+  r.getRange("E4").setFormula(unicos(ult30, antigo));
+  r.getRange("E5").setFormula("=IFERROR(E3 / B4" + s + " 0)").setNumberFormat("0%");
+  r.getRange("E6").setFormula(unicos(novo));
+  r.setColumnWidth(4, 330);
 
   const consulta = (texto) => "=IFERROR(QUERY(Uso!A:F" + s + " \"" + texto + "\"" + s + " 1)" + s + " \"Sem dados ainda\")";
 
@@ -700,7 +723,7 @@ function testarLeitura() {
   }
   Logger.log("Chave de senhas pronta.");
   const aba = abrirAba();
-  Logger.log("ATeG Cal login v" + VERSAO + " — planilha: " + aba.getParent().getName() + " — linhas: " + aba.getLastRow());
+  Logger.log("Assist Cal login v" + VERSAO + " — planilha: " + aba.getParent().getName() + " — linhas: " + aba.getLastRow());
   Logger.log("Cota de e-mails restante hoje: " + MailApp.getRemainingDailyQuota());
   Logger.log("Aba de uso pronta: " + abaUso().getName());
   criarResumo(aba.getParent());

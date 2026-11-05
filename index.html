@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Calculadora de indicadores zootécnicos e econômicos para ATeG.">
+  <meta name="description" content="Calculadora de indicadores zootécnicos e econômicos para assistência técnica.">
   <meta name="theme-color" content="#06200f">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-title" content="ATeG Cal">
+  <meta name="apple-mobile-web-app-title" content="Assist Cal">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>ATeG Cal</title>
+  <title>Assist Cal</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/favicon-64.png" type="image/png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
@@ -18,19 +18,37 @@
   <header class="topo">
     <button class="voltar" id="btnVoltar" type="button" aria-label="Voltar" hidden>&#8592;</button>
     <img class="topo-logo" src="icons/logo-96.png" alt="" width="36" height="36">
-    <h1 id="tituloTela">ATeG Cal</h1>
+    <h1 id="tituloTela">Assist Cal</h1>
     <span id="seloOffline" class="selo-offline" hidden>Offline</span>
   </header>
 
   <main>
+    <!-- Aviso de mudança de endereço: só aparece no endereço antigo (/ateg-cal/) -->
+    <aside id="avisoMudanca" class="mudanca" hidden>
+      <p class="mudanca-titulo">O Assist Cal mudou de endereço</p>
+      <div id="mudancaPendente">
+        <p>Instale o app no endereço novo. Este continua funcionando por um tempo, mas as novidades
+          vão sair só no novo.</p>
+        <ol>
+          <li>Toque no botão abaixo. Se abrir dentro do app, toque em <b>⋮</b> e em <b>Abrir no Chrome</b>.</li>
+          <li><b>Android:</b> toque em <b>⋮</b> e em <b>Instalar app</b>.
+            <b>iPhone:</b> no Safari, toque em <b>Compartilhar</b> e em <b>Adicionar à Tela de Início</b>.</li>
+          <li>Abra pelo ícone novo. No Android você já entra logado; no iPhone, entre com seu celular e senha.</li>
+          <li>Depois, apague este ícone antigo.</li>
+        </ol>
+      </div>
+      <p id="mudancaFeita" hidden>Você já instalou o app no endereço novo. Use o ícone novo e apague este.</p>
+      <a id="btnNovoEndereco" class="primario mudanca-botao" href="#" target="_blank" rel="noopener">Abrir o endereço novo</a>
+    </aside>
+
     <!-- Login pelo celular -->
     <section id="tela-login" class="tela" hidden>
       <div class="login">
-        <img class="login-logo" src="icons/logo-280.png" alt="ATeG Cal — Calculadora zootécnica" width="150" height="150">
+        <img class="login-logo" src="icons/logo-280.png" alt="Assist Cal — Calculadora zootécnica" width="150" height="150">
 
         <div id="blocoEntrar" class="login-bloco">
           <h2>Entrar</h2>
-          <p class="login-texto">Use o celular e a senha cadastrados na Zootécnica ATeG.</p>
+          <p class="login-texto">Use o celular e a senha cadastrados na Zootécnica Assist.</p>
           <form id="formLogin" class="cartao" novalidate>
           <label class="campo">
             <span>Celular</span>
@@ -108,7 +126,7 @@
             <span>Função</span>
             <select name="funcao" required>
               <option value="" selected disabled>Selecione</option>
-              <option>Técnico de campo ATeG</option>
+              <option>Técnico de campo Assist</option>
               <option>Coordenador</option>
               <option>Supervisor</option>
               <option>Produtor rural</option>
@@ -599,20 +617,20 @@
     <!-- Termos de uso e Política de privacidade (leitura e aceite) -->
     <section id="tela-termos" class="tela" hidden>
       <div id="avisoAceite" class="aviso atencao" hidden>
-        Para continuar usando o ATeG Cal, leia e aceite os Termos de uso e a Política de privacidade.
+        Para continuar usando o Assist Cal, leia e aceite os Termos de uso e a Política de privacidade.
       </div>
       <article class="cartao termos">
         <h2>Termos de uso e Política de privacidade</h2>
-        <p class="sub">ATeG Cal · Versão <span id="versaoTermos"></span> · vigente desde 28/10/2026</p>
+        <p class="sub">Assist Cal · Versão <span id="versaoTermos"></span> · vigente desde 05/11/2026</p>
 
         <h3>1. Quem é o responsável</h3>
-        <p>O ATeG Cal é desenvolvido e mantido por <b>Weder de Lima Vieira</b>, zootecnista, pessoa física,
+        <p>O Assist Cal é desenvolvido e mantido por <b>Weder de Lima Vieira</b>, zootecnista, pessoa física,
           com atuação em Goiânia/GO, que é o responsável (controlador) pelos dados pessoais tratados no app.
           Contato: <a href="mailto:zootecnicaateg@gmail.com">zootecnicaateg@gmail.com</a> ou WhatsApp
           <a href="https://wa.me/5562991176151">(62) 9 9117-6151</a>.</p>
 
         <h3>2. O que é o app</h3>
-        <p>O ATeG Cal é uma calculadora de indicadores zootécnicos e econômicos para apoio a técnicos e produtores
+        <p>O Assist Cal, antes chamado ATeG Cal, é uma calculadora de indicadores zootécnicos e econômicos para apoio a técnicos e produtores
           rurais. No momento o uso é gratuito. Funcionalidades, condições de uso ou de acesso podem mudar no
           futuro, com aviso prévio no próprio app.</p>
 
@@ -644,7 +662,7 @@
           <li>Liberar e controlar o acesso ao app.</li>
           <li>Dar suporte e ajudar na recuperação de senha.</li>
           <li>Entender quais módulos são mais usados, para melhorar o app e decidir as próximas funcionalidades.</li>
-          <li>Enviar comunicados sobre o app e conteúdos técnicos da Zootécnica ATeG. Você pode pedir para não
+          <li>Enviar comunicados sobre o app e conteúdos técnicos da Zootécnica Assist. Você pode pedir para não
             receber esses comunicados a qualquer momento.</li>
         </ul>
         <p>O tratamento se baseia no seu consentimento e na necessidade de prestar o serviço que você solicitou
@@ -700,7 +718,7 @@
     <!-- Tela inicial: módulos -->
     <section id="tela-inicio" class="tela">
       <div class="capa">
-        <img src="icons/logo-280.png" alt="ATeG Cal — Calculadora zootécnica" width="140" height="140">
+        <img src="icons/logo-280.png" alt="Assist Cal — Calculadora zootécnica" width="140" height="140">
         <div>
           <p class="capa-titulo">Calculadora zootécnica</p>
           <p class="capa-texto">Indicadores zootécnicos e econômicos para leite e corte, direto no campo.</p>
@@ -837,7 +855,7 @@
 
         <fieldset class="segmentado">
           <legend>Método de cálculo</legend>
-          <label><input type="radio" name="modo" value="padrao" checked><span>Padrão ATeG</span></label>
+          <label><input type="radio" name="modo" value="padrao" checked><span>Padrão Assist</span></label>
           <label><input type="radio" name="modo" value="indices"><span>Índices da fazenda</span></label>
         </fieldset>
 
