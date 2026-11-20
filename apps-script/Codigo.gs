@@ -43,9 +43,17 @@
  *   1.18.0 — 05/11/2026 — ranking de usuários: ação "ranking" devolve só a posição de quem
  *                        pergunta (pontos dos últimos 30 dias, calculados da aba Uso), entre
  *                        todos os cadastros ativos.
+ *   1.19.0 — 20/11/2026 — aba Uso grava o celular como está no cadastro (com ou sem o 9
+ *                        no login, a pessoa conta uma vez só no "Resumo de uso"); celular
+ *                        com 0 antes do DDD não perde mais o 9 no formato; o ranking só dá
+ *                        posição a cadastros ativos; pedido sem dados recebe "Requisição
+ *                        inválida." em vez de falha de conexão.
+ *   1.20.0 — 20/11/2026 — função padronizarCelularesUso (rodar uma vez no editor): reescreve
+ *                        o celular das linhas antigas da aba Uso como está no cadastro, para
+ *                        o "Resumo de uso" não contar a mesma pessoa duas vezes.
  */
 
-const VERSAO = "1.18.0";
+const VERSAO = "1.20.0";
 const PLANILHA_ID = "1SFTDBS8Jiz3yPBbbdkgb8MkWZCbKU9Ed8wjDxNR7pAA";
 const ABA = ""; // vazio = primeira aba
 const MAX_TENTATIVAS = 5;
@@ -113,6 +121,9 @@ function doPost(e) {
   try {
     dados = JSON.parse(e.postData.contents);
   } catch (err) {
+    return responder({ ok: false, erro: "Requisição inválida." });
+  }
+  if (!dados || typeof dados !== "object" || Array.isArray(dados)) {
     return responder({ ok: false, erro: "Requisição inválida." });
   }
   // Sem isto, um erro devolve uma página do Google e o app só diz "Não foi possível conectar".
@@ -337,9 +348,10 @@ function buscarUsuario(chave) {
   for (let i = 1; i < valores.length; i++) {
     const linha = valores[i];
     if (chaveCelular(linha[col.celular]) !== chave) continue;
-    const ativo = col.ativo < 0 ? true : !/^(nao|n|inativo|bloqueado|false|0)$/.test(normalizar(linha[col.ativo]));
+    const ativo = col.ativo < 0 ? true : !desativado(linha[col.ativo]);
     return {
       nome: col.nome < 0 ? "" : linha[col.nome],
+      celular: linha[col.celular],
       senha: linha[col.senha],
       email: col.email < 0 ? "" : String(linha[col.email]).trim(),
       ativo: ativo,
@@ -533,7 +545,8 @@ function registrarUso(d) {
     linhas.push([
       quando,
       semFormula(String(usuario.nome || "").trim()),
-      formatarCelular(chave, d.celular),
+      // Como está no cadastro: o que foi digitado no login pode vir com ou sem o 9.
+      formatarCelular(chave, usuario.celular),
       MODULOS_USO[ev.modulo],
       ACOES_USO[ev.acao],
       semFormula(versaoApp),
@@ -569,24 +582,33 @@ function totalCadastros() {
   const cache = CacheService.getScriptCache();
   const guardado = cache.get("cadastros");
   if (guardado) return Number(guardado);
-  const valores = abrirAba().getDataRange().getDisplayValues();
-  const total = contarCadastros(valores);
+  const total = contarCadastros(abrirAba().getDataRange().getDisplayValues());
   cache.put("cadastros", String(total), CACHE_RANKING_SEGUNDOS);
   return total;
 }
 
 function contarCadastros(valores) {
-  if (valores.length < 2) return 0;
+  return Object.keys(cadastrosAtivos(valores)).length;
+}
+
+// valores: aba de usuários com o cabeçalho. Devolve { chaveCelular: true } dos ativos.
+function cadastrosAtivos(valores) {
+  const ativos = {};
+  if (valores.length < 2) return ativos;
   const col = localizarColunas(valores[0]);
-  if (col.celular < 0) return 0;
-  const vistos = {};
+  if (col.celular < 0) return ativos;
   for (let i = 1; i < valores.length; i++) {
     const chave = chaveCelular(valores[i][col.celular]);
     if (!chave) continue;
-    if (col.ativo >= 0 && /^(nao|n|inativo|bloqueado|false|0)$/.test(normalizar(valores[i][col.ativo]))) continue;
-    vistos[chave] = true;
+    if (col.ativo >= 0 && desativado(valores[i][col.ativo])) continue;
+    ativos[chave] = true;
   }
-  return Object.keys(vistos).length;
+  return ativos;
+}
+
+// "não" (ou n, inativo, bloqueado, false, 0) na coluna Ativo bloqueia o cadastro.
+function desativado(valor) {
+  return /^(nao|n|inativo|bloqueado|false|0)$/.test(normalizar(valor));
 }
 
 // O cálculo lê a aba Uso inteira; o resultado fica guardado por 30 minutos para todos.
@@ -597,7 +619,8 @@ function pontosRanking() {
 
   const aba = SpreadsheetApp.openById(PLANILHA_ID).getSheetByName(ABA_USO);
   const linhas = aba && aba.getLastRow() > 1 ? aba.getRange(2, 1, aba.getLastRow() - 1, 5).getValues() : [];
-  const pontos = calcularPontos(linhas, Date.now());
+  const ativos = cadastrosAtivos(abrirAba().getDataRange().getDisplayValues());
+  const pontos = calcularPontos(linhas, Date.now(), ativos);
   try {
     cache.put("ranking", JSON.stringify(pontos), CACHE_RANKING_SEGUNDOS);
   } catch (err) {
@@ -607,7 +630,8 @@ function pontosRanking() {
 }
 
 // linhas: [Data/hora, Nome, Celular, Módulo, Ação] da aba Uso. Devolve { chaveCelular: pontos }.
-function calcularPontos(linhas, agora) {
+// ativos: { chaveCelular: true }; quem foi desativado na planilha fica sem posição.
+function calcularPontos(linhas, agora, ativos) {
   const inicio = agora - DIAS_RANKING * 86400000;
   const pontos = {};
   const dias = {};
@@ -615,7 +639,7 @@ function calcularPontos(linhas, agora) {
     const quando = linha[0] instanceof Date ? linha[0].getTime() : new Date(linha[0]).getTime();
     if (isNaN(quando) || quando < inicio || quando > agora + 3600000) continue;
     const chave = chaveCelular(linha[2]);
-    if (!chave) continue;
+    if (!chave || (ativos && !ativos[chave])) continue;
     const dia = chave + "|" + Utilities.formatDate(new Date(quando), "America/Sao_Paulo", "yyyy-MM-dd");
     let p = PONTOS_ACAO[linha[4]] || 0;
     if (!dias[dia]) {
@@ -775,8 +799,9 @@ function celularCompleto(valor) {
 }
 
 // Grava o celular sempre no formato (62) 9 9999-9999.
+// Tira o 55 e o 0 antes do DDD, como em celularCompleto: "0 62 9 9999-9999" mantém o 9.
 function formatarCelular(chave, original) {
-  const tem9 = String(original).replace(/\D/g, "").replace(/^55(?=\d{11})/, "").length === 11;
+  const tem9 = String(original).replace(/\D/g, "").replace(/^55(?=\d{11})/, "").replace(/^0/, "").length === 11;
   const fim = chave.slice(2);
   return "(" + chave.slice(0, 2) + ") " + (tem9 ? "9 " : "") + fim.slice(0, 4) + "-" + fim.slice(4);
 }
@@ -865,4 +890,46 @@ function protegerSenhas() {
   } finally {
     trava.releaseLock();
   }
+}
+
+/**
+ * Rode uma vez no editor depois de implantar a 1.20.0: as linhas gravadas antes da 1.19.0 têm o
+ * celular como foi digitado no login (com ou sem o 9). Reescreve cada um como está na aba de
+ * usuários. Só muda a coluna Celular; celulares que não estão no cadastro ficam como estão.
+ */
+function padronizarCelularesUso() {
+  const trava = LockService.getScriptLock();
+  if (!trava.tryLock(20000)) throw new Error("Servidor ocupado. Rode de novo.");
+  try {
+    const resultado = celularesPadronizados(abrirAba().getDataRange().getDisplayValues(), abaUso());
+    Logger.log("Linhas da aba Uso: " + resultado.linhas + "; celulares padronizados: " + resultado.mudados + ".");
+  } finally {
+    trava.releaseLock();
+  }
+}
+
+function celularesPadronizados(usuarios, aba) {
+  const col = localizarColunas(usuarios[0]);
+  if (col.celular < 0) throw new Error("A aba de usuários precisa da coluna Celular.");
+  const formato = {};
+  for (let i = 1; i < usuarios.length; i++) {
+    const chave = chaveCelular(usuarios[i][col.celular]);
+    if (chave && !formato[chave]) formato[chave] = formatarCelular(chave, usuarios[i][col.celular]);
+  }
+  const total = aba.getLastRow() - 1;
+  if (total < 1) return { linhas: 0, mudados: 0 };
+  const faixa = aba.getRange(2, 3, total, 1);
+  const celulares = faixa.getValues(); // linhas que não mudam voltam com o valor original
+  let mudados = 0;
+  const novos = celulares.map((linha) => {
+    const certo = formato[chaveCelular(linha[0])];
+    if (!certo || certo === String(linha[0])) return [linha[0]];
+    mudados++;
+    return [certo];
+  });
+  if (mudados) {
+    faixa.setValues(novos);
+    SpreadsheetApp.flush();
+  }
+  return { linhas: total, mudados: mudados };
 }
