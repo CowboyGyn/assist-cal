@@ -423,6 +423,20 @@ input[name="vacas"] { font-size: 1.25rem; font-weight: 600; }
 .segmentado.tres { grid-template-columns: repeat(3, 1fr); }
 .segmentado.tres span { font-size: 0.9rem; padding: 10px 4px; }
 #blocoSaida { margin-top: 12px; }
+/* Ponto de equilíbrio */
+.lista-custos { display: grid; }
+.custo { display: grid; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--borda); }
+.custo:first-child { padding-top: 4px; }
+.custo-nome { border: 0; padding: 2px 0; background: none; font-weight: 600; font-size: 0.92rem; min-height: 0; }
+.custo-linha { display: grid; grid-template-columns: 1fr 40px; gap: 8px; align-items: center; }
+.resultado td { white-space: nowrap; }
+#resultadoEquilibrio .indicador b { font-size: 1.1rem; white-space: nowrap; }
+.resultado td:first-child { white-space: normal; }
+.resultado .negativo { color: var(--erro); }
+.resultado .positivo { color: var(--verde); }
+.resultado td.suave { color: var(--texto-suave); font-size: 0.85rem; text-align: right; }
+.resultado tr.total td { font-weight: 700; }
+.resultado tr.grupo td { padding-top: 14px; font-size: 0.76rem; font-weight: 600; color: var(--texto-suave); text-align: left; }
 .segmentado legend { padding: 0 4px; font-size: 0.85rem; color: var(--texto-suave); }
 .segmentado label { position: relative; }
 .segmentado input { position: absolute; opacity: 0; min-height: 0; }

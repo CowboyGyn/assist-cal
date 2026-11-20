@@ -1,6 +1,6 @@
 // Cache dos arquivos do app para uso offline no campo.
 // Ao alterar qualquer arquivo listado, incremente o NUMERO.
-const NUMERO = 36;
+const NUMERO = 37;
 // O mesmo arquivo roda nos dois endereços (/ateg-cal/ e /assist-cal/). Os caches são do domínio,
 // divididos pelos dois: cada endereço usa o próprio prefixo e só apaga os próprios caches.
 const PREFIXO = self.location.pathname.startsWith("/ateg-cal/") ? "ateg-cal" : "assist-cal";
@@ -22,6 +22,7 @@ const ARQUIVOS = [
   "js/ui/agio.js",
   "js/ui/capacidade.js",
   "js/ui/silagem.js",
+  "js/ui/equilibrio.js",
   "js/ui/convite.js",
   "js/calc/rebanho.js",
   "js/calc/previsao.js",
@@ -30,6 +31,7 @@ const ARQUIVOS = [
   "js/calc/agio.js",
   "js/calc/capacidade.js",
   "js/calc/silagem.js",
+  "js/calc/equilibrio.js",
   "js/dados/municipios.json",
   "manifest.webmanifest",
   "icons/favicon-64.png",

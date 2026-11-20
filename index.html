@@ -429,6 +429,76 @@
       </template>
     </section>
 
+    <!-- Ponto de equilíbrio -->
+    <section id="tela-ponto-equilibrio" class="tela" hidden>
+      <form id="formEquilibrio" novalidate>
+        <div class="cartao">
+          <label class="campo">
+            <span>Propriedade</span>
+            <input name="fazenda" type="text" autocomplete="off" placeholder="Nome da fazenda">
+          </label>
+          <div class="grade">
+            <label class="campo"><span>Produção atual (L/dia)</span>
+              <input name="litrosDia" type="number" inputmode="decimal" min="0" step="1"></label>
+            <label class="campo"><span>Preço do leite (R$/L)</span>
+              <input name="precoLitro" type="number" inputmode="decimal" min="0" step="0.01"></label>
+            <label class="campo"><span>Vacas em lactação</span>
+              <input name="vacas" type="number" inputmode="numeric" min="0" step="1" placeholder="Opcional"></label>
+            <label class="campo"><span>Outras receitas (R$/mês)</span>
+              <input name="outrasReceitas" type="number" inputmode="decimal" min="0" step="1" placeholder="0"></label>
+          </div>
+          <p class="nota">Outras receitas: venda de animais de descarte, bezerros e esterco, em média por mês.</p>
+        </div>
+
+        <div class="cartao">
+          <div class="cartao-titulo">
+            <strong>Custo operacional efetivo (COE)</strong>
+            <span>Tudo o que se gasta no mês para produzir o leite. Todo o COE é custo variável.</span>
+          </div>
+          <fieldset class="segmentado">
+            <legend>Como informar</legend>
+            <label><input type="radio" name="modoCustos" value="total" checked><span>Total do mês</span></label>
+            <label><input type="radio" name="modoCustos" value="itens"><span>Por itens</span></label>
+          </fieldset>
+          <div id="blocoTotalCusto">
+            <label class="campo"><span>COE do mês (R$)</span>
+              <input name="coeTotal" type="number" inputmode="decimal" min="0" step="1"></label>
+          </div>
+          <div id="blocoItensCusto" hidden>
+            <p class="nota">Valores do mês. Item vazio fica de fora.</p>
+            <div id="listaCustos" class="lista-custos"></div>
+            <button type="button" id="btnAddCusto" class="link">+ Adicionar custo</button>
+          </div>
+          <p class="nota">Concentrado, mão de obra contratada, insumos, energia e tudo o mais que se paga no mês.</p>
+        </div>
+
+        <div class="cartao">
+          <label class="campo"><span>Margem bruta desejada (R$/mês)</span>
+            <input name="margemDesejada" type="number" inputmode="decimal" min="0" step="100" required></label>
+          <p class="nota">Margem bruta = receita − COE. O resultado mostra quanto leite produzir por dia para chegar a ela.</p>
+        </div>
+
+        <p id="erroEquilibrio" class="erro" role="alert" hidden></p>
+
+        <div class="acoes">
+          <button type="submit" class="primario">Calcular</button>
+          <button type="button" id="btnLimparEquilibrio" class="secundario">Limpar</button>
+        </div>
+      </form>
+
+      <div id="resultadoEquilibrio" class="resultado" hidden></div>
+
+      <template id="modeloCusto">
+        <div class="custo">
+          <input data-campo="nome" class="custo-nome" type="text" autocomplete="off" aria-label="Nome do custo" placeholder="Nome do custo">
+          <div class="custo-linha">
+            <input data-campo="valor" type="number" inputmode="decimal" min="0" step="1" aria-label="R$ no mês" placeholder="R$ no mês">
+            <button type="button" class="remover" aria-label="Remover custo">&#10005;</button>
+          </div>
+        </div>
+      </template>
+    </section>
+
     <!-- Ágio de animais -->
     <section id="tela-agio" class="tela" hidden>
       <form id="formAgio" novalidate>
@@ -814,6 +884,17 @@
             <span class="modulo-tag">Corte</span>
             <strong>Ágio de animais</strong>
             <span class="modulo-desc">Compare a reposição com a arroba do boi gordo e veja até quanto pagar.</span>
+          </span>
+          <span class="modulo-seta" aria-hidden="true">&#8250;</span>
+        </a>
+        <a class="modulo economico" href="#/ponto-equilibrio">
+          <span class="modulo-icone" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 3v17M7 20h10"/><path d="M5 7h14"/><path d="M5 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/><path d="M19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/></svg>
+          </span>
+          <span class="modulo-corpo">
+            <span class="modulo-tag">Econômico · Leite</span>
+            <strong>Ponto de equilíbrio</strong>
+            <span class="modulo-desc">Quanto leite produzir para ter a margem bruta desejada.</span>
           </span>
           <span class="modulo-seta" aria-hidden="true">&#8250;</span>
         </a>

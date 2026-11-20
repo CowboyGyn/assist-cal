@@ -51,9 +51,10 @@
  *   1.20.0 — 20/11/2026 — função padronizarCelularesUso (rodar uma vez no editor): reescreve
  *                        o celular das linhas antigas da aba Uso como está no cadastro, para
  *                        o "Resumo de uso" não contar a mesma pessoa duas vezes.
+ *   1.21.0 — 20/11/2026 — contagem de uso do módulo "Ponto de equilíbrio".
  */
 
-const VERSAO = "1.20.0";
+const VERSAO = "1.21.0";
 const PLANILHA_ID = "1SFTDBS8Jiz3yPBbbdkgb8MkWZCbKU9Ed8wjDxNR7pAA";
 const ABA = ""; // vazio = primeira aba
 const MAX_TENTATIVAS = 5;
@@ -99,6 +100,7 @@ const MODULOS_USO = {
   agio: "Ágio de animais",
   "capacidade-suporte": "Capacidade de suporte",
   "estoque-silagem": "Estoque de silagem",
+  "ponto-equilibrio": "Ponto de equilíbrio",
   convite: "Convite",
 };
 const ACOES_USO = { abrir: "Abriu", calcular: "Calculou", pdf: "Exportou PDF", enviar: "Enviou" };
